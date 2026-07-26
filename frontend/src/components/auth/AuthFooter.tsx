@@ -1,15 +1,26 @@
 import { Link } from "react-router-dom";
 
-export default function AuthFooter() {
+interface AuthFooterProps {
+  text: string;
+  linkText: string;
+  linkTo: string;
+}
+
+export default function AuthFooter({
+  text,
+  linkText,
+  linkTo,
+}: AuthFooterProps) {
   return (
-    <p className="mt-8 text-center text-sm text-gray-600">
-      Don't have an account?{" "}
+    <div className="mt-8 text-center text-base text-gray-600">
+      <span>{text} </span>
+
       <Link
-        to="/signup"
-        className="font-semibold text-violet-600 hover:text-violet-700"
+        to={linkTo}
+        className="font-semibold text-violet-600 transition-colors hover:text-violet-700"
       >
-        Sign Up
+        {linkText}
       </Link>
-    </p>
+    </div>
   );
 }

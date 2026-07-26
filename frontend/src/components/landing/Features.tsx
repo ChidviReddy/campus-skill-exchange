@@ -51,10 +51,10 @@ export default function Features() {
   return (
     <section
       id="features"
-      className="bg-white py-28"
+      className="bg-white py-20"
     >
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto mb-20 max-w-3xl text-center">
+        <div className="mx-auto mb-14 max-w-3xl text-center">
           <span className="rounded-full bg-violet-100 px-4 py-2 text-sm font-semibold text-violet-700">
             Why SkillSwap?
           </span>

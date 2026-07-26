@@ -26,10 +26,10 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="bg-gradient-to-b from-gray-50 to-white py-28"
+      className="bg-[#faf9ff] py-14"
     >
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto mb-20 max-w-3xl text-center">
+        <div className="mx-auto mb-14 max-w-3xl text-center">
           <span className="rounded-full bg-violet-100 px-4 py-2 text-sm font-semibold text-violet-700">
             Simple Process
           </span>

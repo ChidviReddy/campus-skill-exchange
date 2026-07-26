@@ -1,0 +1,44 @@
+import Sidebar from "../dashboard/Sidebar";
+import Topbar from "../dashboard/Topbar";
+import BackButton from "./BackButton";
+import ProfileHeader from "./ProfileHeader";
+import AboutCard from "./AboutCard";
+import SkillsSection from "./SkillsSection";
+import ReviewsSection from "./ReviewsSection";
+import RequestSessionCard from "./RequestSessionCard";
+
+const ProfileLayout = () => {
+  return (
+    <div className="flex min-h-screen bg-gradient-to-br from-violet-50 via-white to-violet-100">
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-8">
+        <Topbar />
+
+        <BackButton />
+
+        <div className="mt-8 grid gap-8 xl:grid-cols-[2fr_1fr]">
+          {/* Left Section */}
+          <div className="space-y-8">
+            <ProfileHeader />
+
+            <AboutCard />
+
+            <SkillsSection />
+
+            <ReviewsSection />
+          </div>
+
+          {/* Right Section */}
+          <div>
+            <RequestSessionCard />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default ProfileLayout;

@@ -60,6 +60,16 @@ export default function LoginForm() {
       >
         Sign In
       </Button>
+
+      <p className="pt-2 text-center text-gray-600">
+        Don't have an account?{" "}
+        <Link
+          to="/signup"
+          className="font-semibold text-violet-600 hover:text-violet-700"
+        >
+          Sign Up
+        </Link>
+      </p>
     </form>
   );
 }
