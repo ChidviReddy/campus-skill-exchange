@@ -13,6 +13,8 @@ import RequestSuccess from "@/pages/RequestSuccess";
 import MySessions from "@/pages/MySessions";
 import Notifications from "@/pages/Notifications";
 import Wallet from "@/pages/Wallet";
+import Settings from "@/pages/Settings";
+import SessionDetails from "@/pages/SessionDetails";
 
 export default function AppRoutes() {
   return (
@@ -55,11 +57,21 @@ export default function AppRoutes() {
           element={<MySessions />}
         />
 
+        <Route
+          path="/session-details/:id"
+          element={<SessionDetails />}
+        />
+
         <Route path="/notifications" element={<Notifications />} />
 
         <Route
           path="/wallet"
           element={<Wallet />}
+        />
+
+        <Route
+          path="/settings"
+          element={<Settings />}
         />
       </Routes>
     </BrowserRouter>

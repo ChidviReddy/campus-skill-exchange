@@ -22,7 +22,7 @@ const menuItems = [
   {
     icon: CalendarDays,
     label: "My Sessions",
-    path: "/sessions",
+    path: "/my-sessions",
   },
   {
     icon: Wallet,
