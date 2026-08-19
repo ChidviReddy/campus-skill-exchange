@@ -1,4 +1,4 @@
-import { sessions } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
 import type { SessionFilter } from "@/data/sessions";
 import SessionCard from "./SessionCard";
 
@@ -7,6 +7,8 @@ type SessionListProps = {
 };
 
 const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
+  const { sessions } = useSessions();
+
   const filteredSessions =
     activeFilter === "all"
       ? sessions

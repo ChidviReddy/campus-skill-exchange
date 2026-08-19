@@ -15,6 +15,10 @@ import Notifications from "@/pages/Notifications";
 import Wallet from "@/pages/Wallet";
 import Settings from "@/pages/Settings";
 import SessionDetails from "@/pages/SessionDetails";
+import SessionRoom from "@/pages/SessionRoom";
+import RescheduleSession from "@/pages/RescheduleSession";
+import ReviewSession from "@/pages/ReviewSession";
+import Messages from "@/pages/Messages";
 
 export default function AppRoutes() {
   return (
@@ -61,6 +65,25 @@ export default function AppRoutes() {
           path="/session-details/:id"
           element={<SessionDetails />}
         />
+
+        <Route
+          path="/session-room/:id"
+          element={<SessionRoom />}
+        />
+
+        <Route
+          path="/reschedule-session/:id"
+          element={<RescheduleSession />}
+        />
+
+        <Route
+          path="/review-session/:id"
+          element={<ReviewSession />}
+        />
+
+        <Route path="/messages" element={<Messages />} />
+
+        <Route path="/messages/:conversationId" element={<Messages />} />
 
         <Route path="/notifications" element={<Notifications />} />
 

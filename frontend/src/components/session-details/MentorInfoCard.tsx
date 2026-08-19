@@ -1,4 +1,6 @@
 import { MessageCircle, Star } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useChat } from "@/hooks/useChat";
 import type { Session } from "@/data/sessions";
 
 type MentorInfoCardProps = {
@@ -6,6 +8,9 @@ type MentorInfoCardProps = {
 };
 
 const MentorInfoCard = ({ session }: MentorInfoCardProps) => {
+  const navigate = useNavigate();
+  const { getOrCreateConversationForMentor } = useChat();
+
   const initials =
     session.mentorAvatar ||
     session.mentor
@@ -14,6 +19,15 @@ const MentorInfoCard = ({ session }: MentorInfoCardProps) => {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+
+  const handleMessageMentor = () => {
+    const conv = getOrCreateConversationForMentor(
+      session.mentor,
+      session.mentorRole,
+      session.mentorAvatar
+    );
+    navigate(`/messages/${conv.id}`);
+  };
 
   return (
     <section className="rounded-2xl border border-violet-100 bg-white p-7 shadow-sm">
@@ -24,6 +38,7 @@ const MentorInfoCard = ({ session }: MentorInfoCardProps) => {
 
         <button
           type="button"
+          onClick={handleMessageMentor}
           className="cursor-pointer rounded-xl border border-violet-200 p-2.5 text-violet-600 transition hover:bg-violet-50"
           aria-label="Message mentor"
         >

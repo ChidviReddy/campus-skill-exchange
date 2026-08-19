@@ -1,6 +1,20 @@
-import { Coins, GraduationCap, Star, Users } from "lucide-react";
+import { Coins, GraduationCap, Star, Users, MessageSquare } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useChat } from "@/hooks/useChat";
 
 const ProfileHeader = () => {
+  const navigate = useNavigate();
+  const { getOrCreateConversationForMentor } = useChat();
+
+  const handleMessage = () => {
+    const conv = getOrCreateConversationForMentor(
+      "Priya Sharma",
+      "React Developer",
+      "PS"
+    );
+    navigate(`/messages/${conv.id}`);
+  };
+
   return (
     <section className="rounded-3xl border border-violet-100 bg-white p-8 shadow-sm">
       <div className="flex flex-col gap-8 md:flex-row md:items-center">
@@ -23,9 +37,20 @@ const ProfileHeader = () => {
               </p>
             </div>
 
-            <span className="w-fit rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-              Available Today
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="w-fit rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
+                Available Today
+              </span>
+
+              <button
+                type="button"
+                onClick={handleMessage}
+                className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-xs transition hover:bg-violet-50"
+              >
+                <MessageSquare size={16} />
+                Message
+              </button>
+            </div>
           </div>
 
           {/* Stats */}

@@ -1,6 +1,11 @@
 import { Bell, ChevronDown, Coins, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const Topbar = () => {
+  const navigate = useNavigate();
+  const { unreadCount } = useNotifications();
+
   return (
     <header className="flex items-center justify-between">
       {/* Search Bar */}
@@ -20,7 +25,11 @@ const Topbar = () => {
       {/* Right Side */}
       <div className="ml-8 flex items-center gap-4">
         {/* Credit Wallet */}
-        <button className="flex cursor-pointer items-center gap-3 rounded-xl border border-violet-100 bg-white px-4 py-2 shadow-sm transition-all duration-200 hover:shadow-md">
+        <button
+          type="button"
+          onClick={() => navigate("/wallet")}
+          className="flex cursor-pointer items-center gap-3 rounded-xl border border-violet-100 bg-white px-4 py-2 shadow-sm transition-all duration-200 hover:shadow-md"
+        >
           <div className="rounded-lg bg-violet-100 p-2">
             <Coins size={18} className="text-violet-700" />
           </div>
@@ -32,10 +41,17 @@ const Topbar = () => {
         </button>
 
         {/* Notifications */}
-        <button className="relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border border-violet-100 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
+        <button
+          type="button"
+          onClick={() => navigate("/notifications")}
+          className="relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border border-violet-100 bg-white shadow-sm transition-all duration-200 hover:shadow-md"
+          aria-label="View notifications"
+        >
           <Bell size={20} className="text-slate-700" />
 
-          <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-red-500"></span>
+          {unreadCount > 0 && (
+            <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-red-500 shadow-xs" />
+          )}
         </button>
 
         {/* User */}

@@ -2,11 +2,13 @@ import {
   LayoutDashboard,
   Search,
   CalendarDays,
+  MessageSquare,
   Wallet,
   Bell,
   Settings,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const menuItems = [
   {
@@ -23,6 +25,11 @@ const menuItems = [
     icon: CalendarDays,
     label: "My Sessions",
     path: "/my-sessions",
+  },
+  {
+    icon: MessageSquare,
+    label: "Messages",
+    path: "/messages",
   },
   {
     icon: Wallet,
@@ -42,6 +49,8 @@ const menuItems = [
 ];
 
 const Sidebar = () => {
+  const { unreadCount } = useNotifications();
+
   return (
     <aside className="sticky top-0 flex h-screen w-64 flex-col justify-between border-r border-violet-100 bg-white shadow-sm">
       {/* Logo */}
@@ -77,9 +86,15 @@ const Sidebar = () => {
             >
                 <Icon size={22} strokeWidth={2} />
 
-                <span className="text-[15px] font-medium">
-                {item.label}
+                <span className="flex-1 text-[15px] font-medium">
+                  {item.label}
                 </span>
+
+                {item.label === "Notifications" && unreadCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-violet-100 px-1.5 text-xs font-bold text-violet-700">
+                    {unreadCount}
+                  </span>
+                )}
             </NavLink>
             );
         })}

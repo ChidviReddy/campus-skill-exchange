@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   CalendarDays,
   Clock3,
@@ -7,6 +8,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import type { Session } from "@/data/sessions";
+import CancelSessionModal from "./CancelSessionModal";
 
 type SessionCardProps = Session;
 
@@ -29,17 +31,19 @@ const statusStyles = {
   },
 };
 
-const SessionCard = ({
-  id,
-  mentor,
-  topic,
-  date,
-  time,
-  duration,
-  credits,
-  status,
-}: SessionCardProps) => {
+const SessionCard = (session: SessionCardProps) => {
+  const {
+    id,
+    mentor,
+    topic,
+    date,
+    time,
+    duration,
+    credits,
+    status,
+  } = session;
   const navigate = useNavigate();
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   const currentStatus = statusStyles[status];
 
@@ -130,7 +134,10 @@ const SessionCard = ({
           <>
             <button
               type="button"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/session-room/${id}`);
+              }}
               className="cursor-pointer rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition-all hover:bg-violet-700"
             >
               Join Session
@@ -138,7 +145,10 @@ const SessionCard = ({
 
             <button
               type="button"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/reschedule-session/${id}`);
+              }}
               className="cursor-pointer rounded-xl border border-violet-200 px-6 py-3 font-semibold text-violet-700 transition-all hover:bg-violet-50"
             >
               Reschedule
@@ -159,7 +169,10 @@ const SessionCard = ({
 
             <button
               type="button"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsCancelModalOpen(true);
+              }}
               className="cursor-pointer rounded-xl border border-red-200 px-6 py-3 font-semibold text-red-600 transition-all hover:bg-red-50"
             >
               Cancel Request
@@ -180,7 +193,10 @@ const SessionCard = ({
 
             <button
               type="button"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/review-session/${id}`);
+              }}
               className="cursor-pointer rounded-xl border border-violet-200 px-6 py-3 font-semibold text-violet-700 transition-all hover:bg-violet-50"
             >
               Leave Review
@@ -199,6 +215,12 @@ const SessionCard = ({
           </button>
         )}
       </div>
+
+      <CancelSessionModal
+        session={session}
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+      />
     </section>
   );
 };

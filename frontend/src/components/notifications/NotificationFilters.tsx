@@ -1,44 +1,50 @@
+import { useNotifications } from "@/hooks/useNotifications";
+import type { NotificationFilter } from "@/data/notifications";
+
+const filters: { id: NotificationFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "unread", label: "Unread" },
+  { id: "session", label: "Sessions" },
+  { id: "message", label: "Chats" },
+  { id: "review", label: "Reviews" },
+  { id: "credit", label: "Credits" },
+];
+
 const NotificationFilters = () => {
+  const { activeFilter, setActiveFilter, unreadCount } = useNotifications();
+
   return (
     <section className="flex flex-wrap items-center gap-3">
-      {/* All */}
-      <button
-        className="cursor-pointer rounded-full bg-violet-600 px-7 py-2.5 text-base font-medium text-white transition hover:bg-violet-700"
-      >
-        All
-      </button>
+      {filters.map((filter) => {
+        const isActive = activeFilter === filter.id;
 
-      {/* Unread */}
-      <button
-        className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-6 py-2.5 text-base font-medium text-[#33227a] transition hover:bg-violet-50"
-      >
-        Unread
+        return (
+          <button
+            key={filter.id}
+            type="button"
+            onClick={() => setActiveFilter(filter.id)}
+            className={`cursor-pointer inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-200 ${
+              isActive
+                ? "bg-violet-600 text-white shadow-xs"
+                : "border border-violet-200 bg-white text-[#33227a] hover:bg-violet-50"
+            }`}
+          >
+            {filter.label}
 
-        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-violet-600 px-1.5 text-sm font-semibold text-white">
-          3
-        </span>
-      </button>
-
-      {/* Sessions */}
-      <button
-        className="cursor-pointer rounded-full border border-violet-200 bg-white px-7 py-2.5 text-base font-medium text-[#33227a] transition hover:bg-violet-50"
-      >
-        Sessions
-      </button>
-
-      {/* Chats */}
-      <button
-        className="cursor-pointer rounded-full border border-violet-200 bg-white px-7 py-2.5 text-base font-medium text-[#33227a] transition hover:bg-violet-50"
-      >
-        Chats
-      </button>
-
-      {/* Credits */}
-      <button
-        className="cursor-pointer rounded-full border border-violet-200 bg-white px-7 py-2.5 text-base font-medium text-[#33227a] transition hover:bg-violet-50"
-      >
-        Credits
-      </button>
+            {filter.id === "unread" && unreadCount > 0 && (
+              <span
+                className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold ${
+                  isActive
+                    ? "bg-white text-violet-700"
+                    : "bg-violet-600 text-white"
+                }`}
+              >
+                {unreadCount}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </section>
   );
 };

@@ -1,0 +1,39 @@
+import { useEffect } from "react";
+import { useChat } from "@/hooks/useChat";
+import type { Conversation } from "@/data/messages";
+import ChatHeader from "./ChatHeader";
+import MessageList from "./MessageList";
+import MessageInput from "./MessageInput";
+
+type ChatWindowProps = {
+  conversation: Conversation;
+  onBack?: () => void;
+};
+
+const ChatWindow = ({ conversation, onBack }: ChatWindowProps) => {
+  const { getMessagesByConversationId, sendMessage, markConversationAsRead } =
+    useChat();
+
+  const messages = getMessagesByConversationId(conversation.id);
+
+  // Mark unread messages as read when opening conversation
+  useEffect(() => {
+    if (conversation.unreadCount > 0) {
+      markConversationAsRead(conversation.id);
+    }
+  }, [conversation.id, conversation.unreadCount, markConversationAsRead]);
+
+  const handleSendMessage = (text: string) => {
+    sendMessage(conversation.id, text);
+  };
+
+  return (
+    <div className="flex h-full flex-col bg-white">
+      <ChatHeader conversation={conversation} onBack={onBack} />
+      <MessageList messages={messages} />
+      <MessageInput onSendMessage={handleSendMessage} />
+    </div>
+  );
+};
+
+export default ChatWindow;

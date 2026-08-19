@@ -1,13 +1,13 @@
 import { useParams } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
-import SessionDetailsLayout from "@/components/session-details/SessionDetailsLayout";
+import ReviewSessionLayout from "@/components/review-session/ReviewSessionLayout";
 
-const SessionDetails = () => {
+const ReviewSession = () => {
   const { id } = useParams<{ id: string }>();
   const { getSessionById } = useSessions();
   const session = getSessionById(id);
 
-  return <SessionDetailsLayout session={session} />;
+  return <ReviewSessionLayout session={session} />;
 };
 
-export default SessionDetails;
+export default ReviewSession;
