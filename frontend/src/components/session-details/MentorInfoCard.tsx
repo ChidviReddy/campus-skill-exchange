@@ -1,6 +1,20 @@
 import { MessageCircle, Star } from "lucide-react";
+import type { Session } from "@/data/sessions";
 
-const MentorInfoCard = () => {
+type MentorInfoCardProps = {
+  session: Session;
+};
+
+const MentorInfoCard = ({ session }: MentorInfoCardProps) => {
+  const initials =
+    session.mentorAvatar ||
+    session.mentor
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+
   return (
     <section className="rounded-2xl border border-violet-100 bg-white p-7 shadow-sm">
       <div className="flex items-center justify-between">
@@ -20,17 +34,17 @@ const MentorInfoCard = () => {
       <div className="mt-6 flex items-center gap-5">
         {/* Avatar */}
         <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xl font-semibold text-white">
-          PS
+          {initials}
         </div>
 
         {/* Mentor Details */}
         <div>
           <h3 className="text-xl font-semibold text-[#211653]">
-            Priya Sharma
+            {session.mentor}
           </h3>
 
           <p className="mt-1 text-sm text-slate-500">
-            React Developer
+            {session.mentorRole}
           </p>
 
           <div className="mt-3 flex items-center gap-2">
@@ -40,11 +54,11 @@ const MentorInfoCard = () => {
             />
 
             <span className="text-sm font-semibold text-slate-700">
-              4.9
+              {session.mentorRating}
             </span>
 
             <span className="text-sm text-slate-400">
-              · 42 reviews
+              · {session.reviewCount} reviews
             </span>
           </div>
         </div>
@@ -57,7 +71,7 @@ const MentorInfoCard = () => {
         </p>
 
         <p className="mt-1 text-sm font-semibold text-violet-800">
-          React & Frontend Development
+          {session.teachingSkill}
         </p>
       </div>
     </section>

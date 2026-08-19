@@ -1,8 +1,37 @@
 import { ArrowLeft, Clock3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import type { Session } from "@/data/sessions";
 
-const SessionDetailsHeader = () => {
+type SessionDetailsHeaderProps = {
+  session: Session;
+};
+
+const statusStyles = {
+  upcoming: {
+    badge: "bg-green-100 text-green-700",
+    text: "Upcoming",
+    description: "Your upcoming mentorship session with",
+  },
+  pending: {
+    badge: "bg-amber-100 text-amber-700",
+    text: "Pending",
+    description: "Your pending mentorship session request with",
+  },
+  completed: {
+    badge: "bg-blue-100 text-blue-700",
+    text: "Completed",
+    description: "Your completed mentorship session with",
+  },
+  cancelled: {
+    badge: "bg-red-100 text-red-700",
+    text: "Cancelled",
+    description: "Your cancelled mentorship session with",
+  },
+};
+
+const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
   const navigate = useNavigate();
+  const currentStatus = statusStyles[session.status];
 
   return (
     <section>
@@ -21,22 +50,22 @@ const SessionDetailsHeader = () => {
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-semibold tracking-tight text-[#211653]">
-              React Basics
+              {session.topic}
             </h1>
 
-            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-              Upcoming
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${currentStatus.badge}`}>
+              {currentStatus.text}
             </span>
           </div>
 
           <p className="mt-2 text-base text-slate-500">
-            Your upcoming mentorship session with Priya Sharma.
+            {currentStatus.description} {session.mentor}.
           </p>
         </div>
 
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Clock3 size={18} className="text-violet-600" />
-          <span>60 minute session</span>
+          <span>{session.duration} session</span>
         </div>
       </div>
     </section>

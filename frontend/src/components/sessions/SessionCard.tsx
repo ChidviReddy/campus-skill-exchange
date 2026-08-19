@@ -6,16 +6,9 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-type SessionCardProps = {
-  id: string;
-  mentor: string;
-  topic: string;
-  date: string;
-  time: string;
-  duration: string;
-  credits: number;
-  status: "upcoming" | "pending" | "completed" | "cancelled";
-};
+import type { Session } from "@/data/sessions";
+
+type SessionCardProps = Session;
 
 const statusStyles = {
   upcoming: {

@@ -4,8 +4,13 @@ import {
   Timer,
   Coins,
 } from "lucide-react";
+import type { Session } from "@/data/sessions";
 
-const SessionInfoCard = () => {
+type SessionInfoCardProps = {
+  session: Session;
+};
+
+const SessionInfoCard = ({ session }: SessionInfoCardProps) => {
   return (
     <section className="rounded-2xl border border-violet-100 bg-white p-7 shadow-sm">
       <h2 className="text-lg font-semibold text-[#211653]">
@@ -28,7 +33,7 @@ const SessionInfoCard = () => {
             </p>
 
             <p className="mt-1 text-sm font-semibold text-slate-800">
-              August 22, 2026
+              {session.date}
             </p>
           </div>
         </div>
@@ -48,7 +53,7 @@ const SessionInfoCard = () => {
             </p>
 
             <p className="mt-1 text-sm font-semibold text-slate-800">
-              5:00 PM – 6:00 PM
+              {session.time}
             </p>
           </div>
         </div>
@@ -68,7 +73,7 @@ const SessionInfoCard = () => {
             </p>
 
             <p className="mt-1 text-sm font-semibold text-slate-800">
-              60 minutes
+              {session.duration}
             </p>
           </div>
         </div>
@@ -88,7 +93,7 @@ const SessionInfoCard = () => {
             </p>
 
             <p className="mt-1 text-sm font-semibold text-slate-800">
-              5 credits
+              {session.credits} credits
             </p>
           </div>
         </div>
