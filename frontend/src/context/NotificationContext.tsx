@@ -14,6 +14,9 @@ export interface NotificationContextType {
   filteredNotifications: Notification[];
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
+  addNotification: (
+    notification: Omit<Notification, "id" | "isRead"> & { id?: string; isRead?: boolean }
+  ) => void;
 }
 
 export const NotificationContext = createContext<
@@ -47,6 +50,23 @@ export const NotificationProvider = ({
     );
   };
 
+  const addNotification = (
+    notif: Omit<Notification, "id" | "isRead"> & { id?: string; isRead?: boolean }
+  ) => {
+    const newNotif: Notification = {
+      id: notif.id || `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      type: notif.type,
+      title: notif.title,
+      message: notif.message,
+      timestamp: notif.timestamp || "Just now",
+      isRead: notif.isRead ?? false,
+      relatedId: notif.relatedId,
+      relatedRoute: notif.relatedRoute,
+      group: notif.group || "today",
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+  };
+
   const filteredNotifications = useMemo(() => {
     if (activeFilter === "all") return notifications;
     if (activeFilter === "unread")
@@ -74,6 +94,7 @@ export const NotificationProvider = ({
         filteredNotifications,
         markAsRead,
         markAllAsRead,
+        addNotification,
       }}
     >
       {children}

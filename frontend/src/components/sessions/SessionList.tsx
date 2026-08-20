@@ -7,12 +7,25 @@ type SessionListProps = {
 };
 
 const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
-  const { sessions } = useSessions();
+  const { sessions, currentUser } = useSessions();
+
+  const userSessions = sessions.filter((session) => {
+    if (session.bookedAgain) return false;
+    // For pending requests: only show outgoing learner requests under My Sessions
+    if (session.status === "pending") {
+      return session.learnerId === currentUser.id;
+    }
+    // For upcoming, completed, cancelled, rejected: show if current user is learner or mentor
+    return (
+      session.learnerId === currentUser.id ||
+      session.mentorId === currentUser.id
+    );
+  });
 
   const filteredSessions =
     activeFilter === "all"
-      ? sessions
-      : sessions.filter((session) => session.status === activeFilter);
+      ? userSessions
+      : userSessions.filter((session) => session.status === activeFilter);
 
   return (
     <section className="space-y-6">

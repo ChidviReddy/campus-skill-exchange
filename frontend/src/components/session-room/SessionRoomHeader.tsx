@@ -6,7 +6,10 @@ type SessionRoomHeaderProps = {
   session: Session;
 };
 
-const statusStyles = {
+const statusStyles: Record<
+  "upcoming" | "pending" | "completed" | "cancelled" | "rejected",
+  { badge: string; text: string }
+> = {
   upcoming: {
     badge: "bg-green-100 text-green-700",
     text: "Upcoming",
@@ -22,6 +25,10 @@ const statusStyles = {
   cancelled: {
     badge: "bg-red-100 text-red-700",
     text: "Cancelled",
+  },
+  rejected: {
+    badge: "bg-red-100 text-red-700",
+    text: "Declined",
   },
 };
 

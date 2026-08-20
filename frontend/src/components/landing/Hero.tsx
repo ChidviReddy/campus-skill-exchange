@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
 import HeroIllustration from "./HeroIllustration";
 
 export default function Hero() {
@@ -35,39 +34,26 @@ export default function Hero() {
           </p>
 
           <div className="mt-12 flex flex-wrap items-center gap-6">
-            <Button
-                asChild
-                className="group h-16 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 px-10 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+            <Link
+              to="/signup"
+              className="group inline-flex h-16 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 px-10 text-lg font-semibold text-white shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl"
             >
-                <Link
-                to="/signup"
-                className="flex items-center justify-center gap-3"
-                >
-                Get Started
+              Get Started
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 transition-transform duration-300 group-hover:translate-x-1">
+                <ArrowRight className="h-5 w-5 text-white" />
+              </div>
+            </Link>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 transition-transform duration-300 group-hover:translate-x-1">
-                    <ArrowRight className="h-5 w-5 text-white" />
-                </div>
-                </Link>
-            </Button>
-
-            <Button
-                asChild
-                variant="outline"
-                className="group h-16 rounded-2xl border-2 border-violet-200 bg-white px-10 text-lg font-semibold shadow-sm transition-all duration-300 hover:border-violet-500 hover:bg-violet-50 hover:shadow-xl"
+            <Link
+              to="/explore"
+              className="group inline-flex h-16 items-center justify-center gap-3 rounded-2xl border-2 border-violet-200 bg-white px-10 text-lg font-semibold text-slate-800 shadow-sm transition-all duration-300 hover:border-violet-500 hover:bg-violet-50 hover:shadow-xl"
             >
-                <Link
-                to="/explore"
-                className="flex items-center justify-center gap-3"
-                >
-                Explore Skills
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 transition-transform duration-300 group-hover:translate-x-1">
-                    <ArrowRight className="h-5 w-5 text-violet-600" />
-                </div>
-                </Link>
-            </Button>
-            </div>
+              Explore Skills
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 transition-transform duration-300 group-hover:translate-x-1">
+                <ArrowRight className="h-5 w-5 text-violet-600" />
+              </div>
+            </Link>
+          </div>
 
           <div className="mt-14 flex items-center gap-5">
             <div className="flex -space-x-4">

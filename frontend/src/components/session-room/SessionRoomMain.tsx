@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSessions } from "@/hooks/useSessions";
 import type { Session } from "@/data/sessions";
 
 type SessionRoomMainProps = {
@@ -9,8 +10,14 @@ type SessionRoomMainProps = {
 
 const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
   const navigate = useNavigate();
+  const { completeSession } = useSessions();
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
+
+  const handleEndSession = () => {
+    completeSession(session.id);
+    navigate(`/session-details/${session.id}`);
+  };
 
   const initials =
     session.mentorAvatar ||
@@ -106,7 +113,7 @@ const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
           {/* End Session Button */}
           <button
             type="button"
-            onClick={() => navigate(`/session-details/${session.id}`)}
+            onClick={handleEndSession}
             className="cursor-pointer flex h-12 items-center gap-2 rounded-2xl bg-red-600 px-5 font-semibold text-white shadow-md transition-all duration-200 hover:bg-red-700"
             title="End Session"
           >

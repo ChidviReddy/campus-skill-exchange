@@ -6,7 +6,10 @@ type SessionDetailsHeaderProps = {
   session: Session;
 };
 
-const statusStyles = {
+const statusStyles: Record<
+  "upcoming" | "pending" | "completed" | "cancelled" | "rejected",
+  { badge: string; text: string; description: string }
+> = {
   upcoming: {
     badge: "bg-green-100 text-green-700",
     text: "Upcoming",
@@ -26,6 +29,11 @@ const statusStyles = {
     badge: "bg-red-100 text-red-700",
     text: "Cancelled",
     description: "Your cancelled mentorship session with",
+  },
+  rejected: {
+    badge: "bg-red-100 text-red-700",
+    text: "Declined",
+    description: "Your declined mentorship session request with",
   },
 };
 

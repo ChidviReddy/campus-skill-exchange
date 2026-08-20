@@ -2,6 +2,7 @@ import { Star, Coins } from "lucide-react";
 import { Link } from "react-router-dom";
 
 type UserCardProps = {
+  id: string | number;
   name: string;
   department: string;
   year: string;
@@ -12,6 +13,7 @@ type UserCardProps = {
 };
 
 const UserCard = ({
+  id,
   name,
   department,
   year,
@@ -106,11 +108,11 @@ const UserCard = ({
 
       {/* Button */}
       <Link
-        to="/profile/1"
-        className="mt-8 block w-full rounded-xl bg-violet-600 py-3 text-center font-semibold text-white transition hover:bg-violet-700"
-        >
+        to={`/profile/${id}`}
+        className="cursor-pointer mt-8 block w-full rounded-xl bg-violet-600 py-3 text-center font-semibold text-white transition hover:bg-violet-700"
+      >
         View Profile
-        </Link>
+      </Link>
     </div>
   );
 };

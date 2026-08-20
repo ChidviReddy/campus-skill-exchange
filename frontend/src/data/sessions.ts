@@ -3,10 +3,13 @@ export type SessionFilter =
   | "upcoming"
   | "pending"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "rejected";
 
 export interface Session {
   id: string;
+  learnerId: string;
+  mentorId: string;
   mentor: string;
   mentorRole: string;
   mentorRating: number;
@@ -20,13 +23,20 @@ export interface Session {
   time: string;
   duration: string;
   credits: number;
-  status: "upcoming" | "pending" | "completed" | "cancelled";
+  status: "upcoming" | "pending" | "completed" | "cancelled" | "rejected";
+  role?: "mentor" | "learner";
+  learnerName?: string;
+  bookedAgain?: boolean;
+  replacedBySessionId?: string;
 }
 
 export const sessions: Session[] = [
   {
     id: "1",
+    learnerId: "chidvi",
+    mentorId: "1",
     mentor: "Priya Sharma",
+    learnerName: "Chidvi",
     mentorRole: "React Developer",
     mentorRating: 4.9,
     reviewCount: 42,
@@ -41,10 +51,14 @@ export const sessions: Session[] = [
     duration: "60 minutes",
     credits: 5,
     status: "upcoming",
+    role: "learner",
   },
   {
     id: "2",
+    learnerId: "chidvi",
+    mentorId: "2",
     mentor: "Rahul Verma",
+    learnerName: "Chidvi",
     mentorRole: "AI / ML Engineer",
     mentorRating: 4.8,
     reviewCount: 28,
@@ -57,12 +71,16 @@ export const sessions: Session[] = [
     date: "August 18, 2026",
     time: "11:00 AM – 12:30 PM",
     duration: "90 minutes",
-    credits: 40,
+    credits: 5,
     status: "pending",
+    role: "learner",
   },
   {
     id: "3",
-    mentor: "Ananya Reddy",
+    learnerId: "chidvi",
+    mentorId: "5",
+    mentor: "Ananya Rao",
+    learnerName: "Chidvi",
     mentorRole: "Senior Backend Architect",
     mentorRating: 5.0,
     reviewCount: 64,
@@ -75,12 +93,16 @@ export const sessions: Session[] = [
     date: "August 02, 2026",
     time: "4:30 PM – 5:30 PM",
     duration: "60 minutes",
-    credits: 25,
-    status: "completed",
+    credits: 5,
+    status: "upcoming",
+    role: "learner",
   },
   {
     id: "4",
-    mentor: "Kiran Kumar",
+    learnerId: "chidvi",
+    mentorId: "6",
+    mentor: "Karthik Kumar",
+    learnerName: "Chidvi",
     mentorRole: "Competitive Programmer",
     mentorRating: 4.7,
     reviewCount: 35,
@@ -93,7 +115,50 @@ export const sessions: Session[] = [
     date: "July 28, 2026",
     time: "5:00 PM – 6:00 PM",
     duration: "60 minutes",
-    credits: 25,
+    credits: 5,
     status: "cancelled",
+    role: "learner",
+  },
+  {
+    id: "5",
+    learnerId: "2",
+    mentorId: "1",
+    mentor: "Priya Sharma",
+    learnerName: "Rahul Verma",
+    mentorRole: "React Developer",
+    mentorRating: 4.9,
+    reviewCount: 42,
+    teachingSkill: "React & Frontend Development",
+    topic: "Advanced React Hooks & Custom Patterns",
+    sessionDescription:
+      "Deep dive into advanced hooks, custom hook architecture, and performance optimization in React applications.",
+    learnerGoal:
+      "I want to understand useCallback, useMemo and custom stateful hooks for building responsive UI components.",
+    date: "August 25, 2026",
+    time: "5:00 PM – 6:00 PM",
+    duration: "60 minutes",
+    credits: 5,
+    status: "pending",
+  },
+  {
+    id: "6",
+    learnerId: "4",
+    mentorId: "2",
+    mentor: "Rahul Verma",
+    learnerName: "Arjun Mehta",
+    mentorRole: "AI / ML Engineer",
+    mentorRating: 4.8,
+    reviewCount: 28,
+    teachingSkill: "Machine Learning & Python",
+    topic: "Intro to PyTorch & Neural Networks",
+    sessionDescription:
+      "Build neural networks from scratch, backpropagation, and training your first PyTorch model.",
+    learnerGoal:
+      "Looking to build a neural network for sentiment analysis with Python.",
+    date: "August 28, 2026",
+    time: "4:00 PM – 5:00 PM",
+    duration: "60 minutes",
+    credits: 5,
+    status: "pending",
   },
 ];

@@ -1,9 +1,16 @@
-import { Coins, Wallet, Info } from "lucide-react";
+import { Coins, Wallet, Info, AlertTriangle } from "lucide-react";
+import { useWallet } from "@/hooks/useWallet";
 
-const CreditsCard = () => {
-  const sessionCost = 25;
-  const availableCredits = 120;
-  const remainingCredits = availableCredits - sessionCost;
+type CreditsCardProps = {
+  cost?: number;
+};
+
+const CreditsCard = ({ cost = 5 }: CreditsCardProps) => {
+  const { balance } = useWallet();
+  const sessionCost = cost;
+  const availableCredits = balance;
+  const remainingCredits = Math.max(0, availableCredits - sessionCost);
+  const isInsufficient = availableCredits < 5;
 
   return (
     <section className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
@@ -26,39 +33,67 @@ const CreditsCard = () => {
         </div>
       </div>
 
+      {/* Insufficient Credits Warning */}
+      {isInsufficient && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle size={20} className="shrink-0 text-amber-600" />
+          <div>
+            <p className="text-sm font-semibold text-amber-900">
+              Insufficient credits
+            </p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              At least 5 credits are required to book this session. You currently have {availableCredits} credits.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Credit Details */}
-      <div className="mt-8 space-y-5">
+      <div className="mt-6 space-y-5">
         <div className="flex items-center justify-between">
           <span className="text-slate-600">
-            Session Cost
+            Current Balance
           </span>
 
-          <span className="font-semibold text-slate-900">
-            {sessionCost} Credits
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Wallet
               size={18}
               className="text-violet-600"
             />
-
-            <span className="text-slate-600">
-              Available
+            <span
+              className={`font-semibold ${
+                isInsufficient ? "text-red-600" : "text-slate-900"
+              }`}
+            >
+              {availableCredits} Credits
             </span>
           </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-slate-600">
+            Cost at Completion
+          </span>
+
+          <span className="font-semibold text-violet-700">
+            {sessionCost} Credits
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-slate-600">
+            Deduction Now
+          </span>
 
           <span className="font-semibold text-green-600">
-            {availableCredits} Credits
+            0 Credits (Pending)
           </span>
         </div>
 
         <div className="border-t border-slate-200 pt-5">
           <div className="flex items-center justify-between">
             <span className="font-medium text-slate-700">
-              Remaining After Booking
+              Balance After Completion
             </span>
 
             <span className="text-lg font-bold text-violet-700">
@@ -77,9 +112,7 @@ const CreditsCard = () => {
           />
 
           <p className="text-sm leading-6 text-slate-600">
-            Credits will only be deducted after the mentor accepts your
-            request. If your request is declined or expires, your credits
-            remain unchanged.
+            Credits will only be deducted after the session is completed. If your request is pending, accepted, cancelled, or declined, your credits remain unchanged.
           </p>
         </div>
       </div>

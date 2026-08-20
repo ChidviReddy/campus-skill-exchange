@@ -1,16 +1,30 @@
 import { Coins, GraduationCap, Star, Users, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useChat } from "@/hooks/useChat";
+import { mentors } from "@/data/mentors";
+import type { Mentor } from "@/data/mentors";
 
-const ProfileHeader = () => {
+type ProfileHeaderProps = {
+  mentor?: Mentor;
+};
+
+const ProfileHeader = ({ mentor = mentors[0] }: ProfileHeaderProps) => {
   const navigate = useNavigate();
   const { getOrCreateConversationForMentor } = useChat();
 
+  const initials =
+    mentor.avatar ||
+    mentor.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2);
+
   const handleMessage = () => {
     const conv = getOrCreateConversationForMentor(
-      "Priya Sharma",
-      "React Developer",
-      "PS"
+      mentor.name,
+      mentor.role,
+      mentor.avatar
     );
     navigate(`/messages/${conv.id}`);
   };
@@ -20,7 +34,7 @@ const ProfileHeader = () => {
       <div className="flex flex-col gap-8 md:flex-row md:items-center">
         {/* Avatar */}
         <div className="flex h-32 w-32 items-center justify-center rounded-full bg-violet-100 text-4xl font-bold text-violet-700">
-          PS
+          {initials}
         </div>
 
         {/* User Details */}
@@ -28,12 +42,12 @@ const ProfileHeader = () => {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">
-                Priya Sharma
+                {mentor.name}
               </h1>
 
               <p className="mt-2 flex items-center gap-2 text-slate-600">
                 <GraduationCap size={18} />
-                Computer Science • 3rd Year
+                {mentor.department} • {mentor.year}
               </p>
             </div>
 
@@ -62,7 +76,7 @@ const ProfileHeader = () => {
               </div>
 
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                4.9
+                {mentor.rating}
               </p>
             </div>
 
@@ -73,7 +87,7 @@ const ProfileHeader = () => {
               </div>
 
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                120
+                {mentor.credits}
               </p>
             </div>
 
@@ -84,7 +98,7 @@ const ProfileHeader = () => {
               </div>
 
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                38
+                {mentor.sessionsCount}
               </p>
             </div>
           </div>

@@ -9,10 +9,14 @@ import { useNavigate } from "react-router-dom";
 
 import type { Session } from "@/data/sessions";
 import CancelSessionModal from "./CancelSessionModal";
+import CancelRequestModal from "./CancelRequestModal";
 
 type SessionCardProps = Session;
 
-const statusStyles = {
+const statusStyles: Record<
+  "upcoming" | "pending" | "completed" | "cancelled" | "rejected",
+  { badge: string; text: string }
+> = {
   upcoming: {
     badge: "bg-green-100 text-green-700",
     text: "Upcoming",
@@ -29,6 +33,10 @@ const statusStyles = {
     badge: "bg-red-100 text-red-700",
     text: "Cancelled",
   },
+  rejected: {
+    badge: "bg-red-100 text-red-700",
+    text: "Declined",
+  },
 };
 
 const SessionCard = (session: SessionCardProps) => {
@@ -44,6 +52,7 @@ const SessionCard = (session: SessionCardProps) => {
   } = session;
   const navigate = useNavigate();
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
 
   const currentStatus = statusStyles[status];
 
@@ -161,7 +170,10 @@ const SessionCard = (session: SessionCardProps) => {
           <>
             <button
               type="button"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/session-details/${id}`);
+              }}
               className="cursor-pointer rounded-xl bg-amber-500 px-6 py-3 font-semibold text-white transition-all hover:bg-amber-600"
             >
               View Request
@@ -171,7 +183,7 @@ const SessionCard = (session: SessionCardProps) => {
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                setIsCancelModalOpen(true);
+                setIsCancelRequestModalOpen(true);
               }}
               className="cursor-pointer rounded-xl border border-red-200 px-6 py-3 font-semibold text-red-600 transition-all hover:bg-red-50"
             >
@@ -185,7 +197,10 @@ const SessionCard = (session: SessionCardProps) => {
           <>
             <button
               type="button"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/session-notes/${id}`);
+              }}
               className="cursor-pointer rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition-all hover:bg-blue-700"
             >
               View Notes
@@ -208,7 +223,10 @@ const SessionCard = (session: SessionCardProps) => {
         {status === "cancelled" && (
           <button
             type="button"
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              navigate(`/book-again/${id}`);
+            }}
             className="cursor-pointer rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition-all hover:bg-violet-700"
           >
             Book Again
@@ -220,6 +238,12 @@ const SessionCard = (session: SessionCardProps) => {
         session={session}
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}
+      />
+
+      <CancelRequestModal
+        session={session}
+        isOpen={isCancelRequestModalOpen}
+        onClose={() => setIsCancelRequestModalOpen(false)}
       />
     </section>
   );

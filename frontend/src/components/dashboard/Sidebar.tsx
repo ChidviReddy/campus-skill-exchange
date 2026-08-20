@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Search,
   CalendarDays,
+  Inbox,
   MessageSquare,
   Wallet,
   Bell,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useSessions } from "@/hooks/useSessions";
 
 const menuItems = [
   {
@@ -25,6 +27,11 @@ const menuItems = [
     icon: CalendarDays,
     label: "My Sessions",
     path: "/my-sessions",
+  },
+  {
+    icon: Inbox,
+    label: "Incoming Requests",
+    path: "/mentor-requests",
   },
   {
     icon: MessageSquare,
@@ -50,6 +57,20 @@ const menuItems = [
 
 const Sidebar = () => {
   const { unreadCount } = useNotifications();
+  const { sessions, currentUser } = useSessions();
+
+  const pendingRequestsCount = sessions.filter(
+    (s) => s.mentorId === currentUser.id && s.status === "pending" && !s.bookedAgain
+  ).length;
+
+  const initials =
+    currentUser.avatar ||
+    currentUser.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 flex-col justify-between border-r border-violet-100 bg-white shadow-sm">
@@ -95,26 +116,36 @@ const Sidebar = () => {
                     {unreadCount}
                   </span>
                 )}
+
+                {item.label === "Incoming Requests" && pendingRequestsCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-xs font-bold text-amber-800">
+                    {pendingRequestsCount}
+                  </span>
+                )}
             </NavLink>
             );
         })}
         </nav>
       </div>
 
-      {/* User */}
+      {/* User Info */}
       <div className="border-t border-violet-100 p-5">
-        <button className="flex w-full cursor-pointer items-center gap-3 rounded-xl p-2 transition hover:bg-violet-50">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 font-semibold text-white">
-            CH
-          </div>
+        <div className="flex items-center justify-between rounded-xl bg-violet-50/60 p-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 font-semibold text-white">
+              {initials}
+            </div>
 
-          <div className="text-left">
-            <p className="font-semibold text-slate-800">Chidvi</p>
-            <p className="text-sm text-slate-500">
-              Computer Science Student
-            </p>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-800 truncate">
+                {currentUser.name}
+              </p>
+              <p className="text-xs font-medium text-slate-500 truncate">
+                {currentUser.role}
+              </p>
+            </div>
           </div>
-        </button>
+        </div>
       </div>
     </aside>
   );

@@ -9,6 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import Explore from "@/pages/Explore";
 import UserProfile from "@/pages/UserProfile";
 import RequestSession from "@/pages/RequestSession";
+import BookAgain from "@/pages/BookAgain";
 import RequestSuccess from "@/pages/RequestSuccess";
 import MySessions from "@/pages/MySessions";
 import Notifications from "@/pages/Notifications";
@@ -18,7 +19,9 @@ import SessionDetails from "@/pages/SessionDetails";
 import SessionRoom from "@/pages/SessionRoom";
 import RescheduleSession from "@/pages/RescheduleSession";
 import ReviewSession from "@/pages/ReviewSession";
+import SessionNotes from "@/pages/SessionNotes";
 import Messages from "@/pages/Messages";
+import MentorRequests from "@/pages/MentorRequests";
 
 export default function AppRoutes() {
   return (
@@ -51,6 +54,8 @@ export default function AppRoutes() {
 
         <Route path="/request-session/:id" element={<RequestSession />} />
 
+        <Route path="/book-again/:id" element={<BookAgain />} />
+
         <Route
           path="/request-success"
           element={<RequestSuccess />}
@@ -59,6 +64,11 @@ export default function AppRoutes() {
         <Route
           path="/my-sessions"
           element={<MySessions />}
+        />
+
+        <Route
+          path="/mentor-requests"
+          element={<MentorRequests />}
         />
 
         <Route
@@ -79,6 +89,11 @@ export default function AppRoutes() {
         <Route
           path="/review-session/:id"
           element={<ReviewSession />}
+        />
+
+        <Route
+          path="/session-notes/:id"
+          element={<SessionNotes />}
         />
 
         <Route path="/messages" element={<Messages />} />

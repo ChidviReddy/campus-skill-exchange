@@ -1,6 +1,9 @@
 import { Coins, TrendingUp, TrendingDown } from "lucide-react";
+import { useWallet } from "@/hooks/useWallet";
 
 const BalanceSection = () => {
+  const { balance, totalEarned, totalSpent } = useWallet();
+
   return (
     <section className="grid gap-5 lg:grid-cols-[1.3fr_1fr_1fr]">
       {/* Current Balance */}
@@ -11,7 +14,7 @@ const BalanceSection = () => {
 
         <div className="mt-4 flex items-baseline gap-3">
           <h2 className="text-5xl font-semibold tracking-tight">
-            35
+            {balance}
           </h2>
 
           <span className="text-2xl font-medium text-violet-100">
@@ -46,7 +49,7 @@ const BalanceSection = () => {
         </div>
 
         <p className="mt-5 text-4xl font-medium text-[#211653]">
-          65
+          {totalEarned}
         </p>
       </div>
 
@@ -66,7 +69,7 @@ const BalanceSection = () => {
         </div>
 
         <p className="mt-5 text-4xl font-medium text-[#211653]">
-          30
+          {totalSpent}
         </p>
       </div>
     </section>

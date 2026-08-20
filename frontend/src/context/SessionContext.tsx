@@ -2,6 +2,11 @@ import { createContext, useState } from "react";
 import type { ReactNode } from "react";
 import { sessions as initialSessions } from "@/data/sessions";
 import type { Session } from "@/data/sessions";
+import { useWallet } from "@/hooks/useWallet";
+
+import { useNotifications } from "@/hooks/useNotifications";
+import { users, getUserById } from "@/data/mentors";
+import type { User } from "@/data/mentors";
 
 export interface SessionReview {
   sessionId: string;
@@ -15,13 +20,28 @@ export interface SessionReview {
 export interface SessionContextType {
   sessions: Session[];
   reviews: SessionReview[];
+  currentUser: User;
+  setCurrentUser: (user: User) => void;
+  switchUserById: (id: string) => void;
+  incomingRequests: Session[];
+  outgoingRequests: Session[];
+  currentUserRole: "mentor" | "learner";
+  setCurrentUserRole: (role: "mentor" | "learner") => void;
   getSessionById: (id: string | undefined) => Session | undefined;
   getReviewBySessionId: (
     sessionId: string | undefined
   ) => SessionReview | undefined;
   rescheduleSession: (id: string, newDate: string, newTime: string) => boolean;
   cancelSession: (id: string) => boolean;
+  cancelRequest: (id: string) => boolean;
+  acceptRequest: (id: string) => boolean;
+  rejectRequest: (id: string) => boolean;
+  completeSession: (
+    id: string,
+    roleOverride?: "mentor" | "learner"
+  ) => { success: boolean; error?: string };
   submitReview: (review: Omit<SessionReview, "submittedAt">) => boolean;
+  addSession: (session: Session, replacedSessionId?: string) => void;
 }
 
 export const SessionContext = createContext<SessionContextType | undefined>(
@@ -31,6 +51,25 @@ export const SessionContext = createContext<SessionContextType | undefined>(
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
   const [reviews, setReviews] = useState<SessionReview[]>([]);
+  const [currentUser, setCurrentUser] = useState<User>(users[0]);
+  const [currentUserRole, setCurrentUserRole] = useState<"mentor" | "learner">("mentor");
+  const { completeSessionAndProcessCredits } = useWallet();
+  const { addNotification } = useNotifications();
+
+  const switchUserById = (id: string) => {
+    const found = getUserById(id);
+    if (found) {
+      setCurrentUser(found);
+    }
+  };
+
+  const incomingRequests = sessions.filter(
+    (s) => s.mentorId === currentUser.id && s.status === "pending" && !s.bookedAgain
+  );
+
+  const outgoingRequests = sessions.filter(
+    (s) => s.learnerId === currentUser.id && s.status === "pending" && !s.bookedAgain
+  );
 
   const getSessionById = (id: string | undefined): Session | undefined => {
     if (!id) return undefined;
@@ -42,6 +81,25 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   ): SessionReview | undefined => {
     if (!sessionId) return undefined;
     return reviews.find((item) => item.sessionId === sessionId);
+  };
+
+  const addSession = (newSession: Session, replacedSessionId?: string) => {
+    setSessions((prev) => {
+      let next = [newSession, ...prev];
+      if (replacedSessionId) {
+        next = next.map((s) => {
+          if (s.id === replacedSessionId) {
+            return {
+              ...s,
+              bookedAgain: true,
+              replacedBySessionId: newSession.id,
+            };
+          }
+          return s;
+        });
+      }
+      return next;
+    });
   };
 
   const rescheduleSession = (
@@ -70,10 +128,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     let updated = false;
     setSessions((prev) =>
       prev.map((session) => {
-        if (
-          session.id === id &&
-          (session.status === "upcoming" || session.status === "pending")
-        ) {
+        if (session.id === id && session.status === "upcoming") {
           updated = true;
           return {
             ...session,
@@ -84,6 +139,120 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       })
     );
     return updated;
+  };
+
+  const cancelRequest = (id: string): boolean => {
+    let updated = false;
+    setSessions((prev) => {
+      const exists = prev.some(
+        (session) => session.id === id && session.status === "pending"
+      );
+      if (exists) {
+        updated = true;
+        return prev.filter((session) => session.id !== id);
+      }
+      return prev;
+    });
+    return updated;
+  };
+
+  // Mentor accepts a pending request -> status becomes "upcoming", 0 credit deduction
+  const acceptRequest = (id: string): boolean => {
+    const targetSession = sessions.find(
+      (s) => s.id === id && s.status === "pending"
+    );
+    if (!targetSession) return false;
+
+    setSessions((prev) =>
+      prev.map((session) => {
+        if (session.id === id && session.status === "pending") {
+          return {
+            ...session,
+            status: "upcoming",
+          };
+        }
+        return session;
+      })
+    );
+
+    addNotification({
+      type: "session",
+      title: "Request Accepted",
+      message: `${targetSession.mentor} accepted your ${targetSession.topic} session request.`,
+      timestamp: "Just now",
+      relatedId: targetSession.id,
+      relatedRoute: `/session-details/${targetSession.id}`,
+      group: "today",
+    });
+
+    return true;
+  };
+
+  // Mentor rejects a pending request -> status becomes "rejected", 0 credit deduction
+  const rejectRequest = (id: string): boolean => {
+    const targetSession = sessions.find(
+      (s) => s.id === id && s.status === "pending"
+    );
+    if (!targetSession) return false;
+
+    setSessions((prev) =>
+      prev.map((session) => {
+        if (session.id === id && session.status === "pending") {
+          return {
+            ...session,
+            status: "rejected",
+          };
+        }
+        return session;
+      })
+    );
+
+    addNotification({
+      type: "session",
+      title: "Request Declined",
+      message: `${targetSession.mentor} declined your ${targetSession.topic} session request.`,
+      timestamp: "Just now",
+      relatedId: targetSession.id,
+      relatedRoute: "/my-sessions",
+      group: "today",
+    });
+
+    return true;
+  };
+
+  const completeSession = (
+    id: string,
+    roleOverride?: "mentor" | "learner"
+  ): { success: boolean; error?: string } => {
+    const targetSession = sessions.find((s) => s.id === id);
+    if (!targetSession) {
+      return { success: false, error: "Session not found" };
+    }
+
+    if (targetSession.status === "completed") {
+      return { success: true };
+    }
+
+    const creditResult = completeSessionAndProcessCredits(targetSession);
+
+    if (!creditResult.success) {
+      return creditResult;
+    }
+
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id === id) {
+          return {
+            ...s,
+            status: "completed",
+            role: roleOverride || s.role || "learner",
+          };
+        }
+        return s;
+      })
+    );
+
+    return { success: true };
   };
 
   const submitReview = (
@@ -105,11 +274,23 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       value={{
         sessions,
         reviews,
+        currentUser,
+        setCurrentUser,
+        switchUserById,
+        incomingRequests,
+        outgoingRequests,
+        currentUserRole,
+        setCurrentUserRole,
         getSessionById,
         getReviewBySessionId,
         rescheduleSession,
         cancelSession,
+        cancelRequest,
+        acceptRequest,
+        rejectRequest,
+        completeSession,
         submitReview,
+        addSession,
       }}
     >
       {children}

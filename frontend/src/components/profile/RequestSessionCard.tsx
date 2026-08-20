@@ -5,8 +5,14 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { mentors } from "@/data/mentors";
+import type { Mentor } from "@/data/mentors";
 
-const RequestSessionCard = () => {
+type RequestSessionCardProps = {
+  mentor?: Mentor;
+};
+
+const RequestSessionCard = ({ mentor = mentors[0] }: RequestSessionCardProps) => {
   return (
     <div className="sticky top-8 rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
       <h2 className="text-2xl font-bold text-slate-900">
@@ -14,7 +20,7 @@ const RequestSessionCard = () => {
       </h2>
 
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        Book a personalized learning session with this mentor.
+        Book a personalized learning session with {mentor.name}.
       </p>
 
       {/* Session Details */}
@@ -32,7 +38,7 @@ const RequestSessionCard = () => {
           </div>
 
           <span className="font-semibold text-slate-900">
-            25 Credits
+            5 Credits
           </span>
         </div>
 
@@ -103,14 +109,14 @@ const RequestSessionCard = () => {
 
       {/* CTA */}
       <Link
-        to="/request-session/1"
-        className="mt-8 block w-full rounded-xl bg-violet-600 py-4 text-center text-base font-semibold text-white transition-all duration-200 hover:bg-violet-700 hover:shadow-lg"
+        to={`/request-session/${mentor.id}`}
+        className="cursor-pointer mt-8 block w-full rounded-xl bg-violet-600 py-4 text-center text-base font-semibold text-white transition-all duration-200 hover:bg-violet-700 hover:shadow-lg"
       >
         Request Session
       </Link>
 
       <p className="mt-3 text-center text-xs text-slate-500">
-        Credits will only be deducted after the request is accepted.
+        Credits will only be deducted after the request is completed.
       </p>
     </div>
   );

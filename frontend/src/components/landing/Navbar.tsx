@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export default function Navbar() {
   return (
@@ -40,20 +39,19 @@ export default function Navbar() {
 
         {/* Right Side Buttons */}
         <div className="hidden items-center gap-4 lg:flex">
-          <Button
-            asChild
-            variant="ghost"
-            className="rounded-xl px-5 text-[15px] font-medium hover:bg-violet-50 hover:text-violet-600"
+          <Link
+            to="/login"
+            className="rounded-xl px-5 py-2.5 text-[15px] font-medium text-slate-700 hover:bg-violet-50 hover:text-violet-600 transition"
           >
-            <Link to="/login">Login</Link>
-          </Button>
+            Login
+          </Link>
 
-          <Button
-            asChild
-            className="rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-6 text-[15px] font-semibold shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+          <Link
+            to="/signup"
+            className="rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 text-[15px] font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
           >
-            <Link to="/signup">Get Started</Link>
-          </Button>
+            Get Started
+          </Link>
         </div>
 
         {/* Mobile Menu Button */}

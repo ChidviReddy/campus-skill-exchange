@@ -25,7 +25,11 @@ export default function SignupPage() {
 
         <SignupForm />
 
-        <AuthFooter />
+        <AuthFooter
+          text="Already have an account?"
+          linkText="Sign In"
+          linkTo="/login"
+        />
       </div>
     </AuthLayout>
   );

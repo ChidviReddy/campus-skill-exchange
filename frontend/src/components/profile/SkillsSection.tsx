@@ -1,22 +1,12 @@
 import { BookOpen, Sparkles } from "lucide-react";
+import { mentors } from "@/data/mentors";
+import type { Mentor } from "@/data/mentors";
 
-const teachingSkills = [
-  "React",
-  "TypeScript",
-  "Next.js",
-  "Tailwind CSS",
-  "JavaScript",
-  "Git",
-];
+type SkillsSectionProps = {
+  mentor?: Mentor;
+};
 
-const learningSkills = [
-  "Machine Learning",
-  "Cloud Computing",
-  "DevOps",
-  "Docker",
-];
-
-const SkillsSection = () => {
+const SkillsSection = ({ mentor = mentors[0] }: SkillsSectionProps) => {
   return (
     <section className="grid gap-6 lg:grid-cols-2">
       {/* Skills I Teach */}
@@ -41,7 +31,7 @@ const SkillsSection = () => {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          {teachingSkills.map((skill) => (
+          {mentor.teaches.map((skill) => (
             <span
               key={skill}
               className="rounded-full bg-violet-100 px-4 py-2 text-sm font-medium text-violet-700"
@@ -74,7 +64,7 @@ const SkillsSection = () => {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          {learningSkills.map((skill) => (
+          {mentor.learns.map((skill) => (
             <span
               key={skill}
               className="rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-700"

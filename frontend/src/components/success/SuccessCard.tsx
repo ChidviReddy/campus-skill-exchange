@@ -1,7 +1,16 @@
 import { CheckCircle2, CalendarDays, Clock3, BookOpen, Coins, User, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import type { Session } from "@/data/sessions";
 
 const SuccessCard = () => {
+  const location = useLocation();
+  const session = location.state?.session as Session | undefined;
+
+  const mentorName = session?.mentor || "Priya Sharma";
+  const topicName = session?.topic || "React Hooks";
+  const dateStr = session?.date || "15 Aug 2026";
+  const durationStr = session?.duration || "60 Minutes";
+
   return (
     <section className="rounded-3xl border border-violet-100 bg-white p-10 shadow-sm">
       {/* Success Icon */}
@@ -33,7 +42,7 @@ const SuccessCard = () => {
             <div>
               <p className="text-sm text-slate-500">Mentor</p>
               <p className="font-semibold text-slate-900">
-                Priya Sharma
+                {mentorName}
               </p>
             </div>
           </div>
@@ -45,7 +54,7 @@ const SuccessCard = () => {
             <div>
               <p className="text-sm text-slate-500">Topic</p>
               <p className="font-semibold text-slate-900">
-                React Hooks
+                {topicName}
               </p>
             </div>
           </div>
@@ -57,7 +66,7 @@ const SuccessCard = () => {
             <div>
               <p className="text-sm text-slate-500">Preferred Date</p>
               <p className="font-semibold text-slate-900">
-                15 Aug 2026
+                {dateStr}
               </p>
             </div>
           </div>
@@ -69,7 +78,7 @@ const SuccessCard = () => {
             <div>
               <p className="text-sm text-slate-500">Duration</p>
               <p className="font-semibold text-slate-900">
-                60 Minutes
+                {durationStr}
               </p>
             </div>
           </div>
@@ -87,11 +96,11 @@ const SuccessCard = () => {
 
           <div>
             <p className="font-semibold text-slate-900">
-              Credits Reserved
+              Zero Credits Deducted Now
             </p>
 
             <p className="text-sm text-slate-600">
-              25 credits will be deducted only after the mentor accepts your request.
+              5 credits will be deducted only after the session is completed. Your wallet balance remains unchanged while your request is pending.
             </p>
           </div>
         </div>
