@@ -78,8 +78,13 @@ const RequestSessionCard = ({ mentor = mentors[0] }: RequestSessionCardProps) =>
             </span>
           </div>
 
-          <span className="font-semibold text-green-600">
-            Mon - Fri
+          <span className="font-semibold text-green-600 text-sm">
+            {mentor.availability && mentor.availability.filter((a) => a.enabled).length > 0
+              ? mentor.availability
+                  .filter((a) => a.enabled)
+                  .map((a) => a.day.slice(0, 3).charAt(0).toUpperCase() + a.day.slice(1, 3))
+                  .join(", ")
+              : "Not Available"}
           </span>
         </div>
       </div>

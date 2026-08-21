@@ -31,6 +31,10 @@ export interface SessionContextType {
   switchUserById: (id: string) => void;
   getUserById: (id: string | undefined) => User | undefined;
   updateUserProfile: (userId: string, updates: Partial<User>) => void;
+  updateUserAvailability: (
+    userId: string,
+    availability: import("@/data/mentors").DayAvailability[]
+  ) => void;
   addTeachingSkill: (userId: string, skill: string) => boolean;
   removeTeachingSkill: (userId: string, skill: string) => boolean;
   addLearningSkill: (userId: string, skill: string) => boolean;
@@ -145,6 +149,24 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       prev.map((user) => {
         if (user.id === userId) {
           const updatedUser = { ...user, ...updates };
+          if (currentUser.id === userId) {
+            setCurrentUser(updatedUser);
+          }
+          return updatedUser;
+        }
+        return user;
+      })
+    );
+  };
+
+  const updateUserAvailability = (
+    userId: string,
+    availability: import("@/data/mentors").DayAvailability[]
+  ) => {
+    setUsersState((prev) =>
+      prev.map((user) => {
+        if (user.id === userId) {
+          const updatedUser = { ...user, availability };
           if (currentUser.id === userId) {
             setCurrentUser(updatedUser);
           }
@@ -634,6 +656,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         switchUserById,
         getUserById,
         updateUserProfile,
+        updateUserAvailability,
         addTeachingSkill,
         removeTeachingSkill,
         addLearningSkill,

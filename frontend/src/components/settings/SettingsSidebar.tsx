@@ -1,12 +1,14 @@
 import {
   User,
   Sparkles,
+  CalendarDays,
   Bell,
   Shield,
 } from "lucide-react";
 
-type SettingsSection =
+export type SettingsSection =
   | "profile"
+  | "availability"
   | "skills"
   | "notifications"
   | "security";
@@ -23,6 +25,11 @@ const settingsItems = [
     id: "profile" as const,
     label: "Profile",
     icon: User,
+  },
+  {
+    id: "availability" as const,
+    label: "Teaching Availability",
+    icon: CalendarDays,
   },
   {
     id: "skills" as const,

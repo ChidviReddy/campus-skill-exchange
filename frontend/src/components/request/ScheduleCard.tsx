@@ -1,6 +1,15 @@
-import { CalendarDays, Clock3, Timer } from "lucide-react";
+import { CalendarDays, Clock3, Timer, Info, CheckCircle2 } from "lucide-react";
+import type { User } from "@/data/mentors";
+import type { Session } from "@/data/sessions";
+import {
+  formatTime24to12,
+  getDayOfWeekFromDate,
+  getAvailableSlotsForDate,
+} from "@/utils/sessionTime";
 
 type ScheduleCardProps = {
+  mentor?: User;
+  sessions?: Session[];
   date: string;
   time: string;
   duration: string;
@@ -9,9 +18,12 @@ type ScheduleCardProps = {
   onDurationChange: (duration: string) => void;
   dateError?: string;
   timeError?: string;
+  ignoreSessionId?: string;
 };
 
 const ScheduleCard = ({
+  mentor,
+  sessions = [],
   date,
   time,
   duration,
@@ -20,8 +32,23 @@ const ScheduleCard = ({
   onDurationChange,
   dateError,
   timeError,
+  ignoreSessionId,
 }: ScheduleCardProps) => {
   const todayStr = new Date().toISOString().split("T")[0];
+
+  const enabledDays = mentor?.availability?.filter((a) => a.enabled) || [];
+  const selectedDayOfWeek = getDayOfWeekFromDate(date);
+  const selectedDayAvail = mentor?.availability?.find(
+    (a) => a.day === selectedDayOfWeek
+  );
+
+  const slotSuggestions = getAvailableSlotsForDate(
+    mentor,
+    date,
+    duration,
+    sessions,
+    ignoreSessionId
+  );
 
   const isSelectedDuration = (opt: string) => {
     if (opt === "30 Min" && duration.includes("30")) return true;
@@ -51,6 +78,34 @@ const ScheduleCard = ({
         </div>
       </div>
 
+      {/* Mentor Availability Guidance Banner */}
+      {mentor && (
+        <div className="mt-6 rounded-2xl bg-violet-50/70 p-4 border border-violet-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-violet-900 font-medium">
+            <Info size={18} className="text-violet-600 shrink-0" />
+            <span>
+              {enabledDays.length > 0 ? (
+                <>
+                  <strong className="font-semibold">{mentor.name}'s Teaching Days:</strong>{" "}
+                  {enabledDays
+                    .map(
+                      (a) =>
+                        `${a.day.charAt(0).toUpperCase() + a.day.slice(1)} (${formatTime24to12(
+                          a.startTime
+                        )} – ${formatTime24to12(a.endTime)})`
+                    )
+                    .join(", ")}
+                </>
+              ) : (
+                <span className="text-amber-700 font-semibold">
+                  This mentor has no available teaching slots configured.
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Date & Time */}
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         <div>
@@ -78,6 +133,20 @@ const ScheduleCard = ({
 
           {dateError && (
             <p className="mt-2 text-sm text-red-600">{dateError}</p>
+          )}
+
+          {date && selectedDayOfWeek && (
+            <p className="mt-2 text-xs font-medium text-slate-500">
+              Selected: <span className="capitalize font-semibold text-violet-700">{selectedDayOfWeek}</span>
+              {selectedDayAvail?.enabled ? (
+                <span className="text-green-600 font-medium">
+                  {" "}
+                  (Available {formatTime24to12(selectedDayAvail.startTime)} – {formatTime24to12(selectedDayAvail.endTime)})
+                </span>
+              ) : (
+                <span className="text-red-500 font-medium"> (Mentor not available on this day)</span>
+              )}
+            </p>
           )}
         </div>
 
@@ -108,6 +177,48 @@ const ScheduleCard = ({
           )}
         </div>
       </div>
+
+      {/* Available Slots Pills */}
+      {date && slotSuggestions.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
+          <div className="flex items-center gap-2 text-xs font-bold text-violet-900 uppercase tracking-wider">
+            <CheckCircle2 size={14} className="text-violet-600" />
+            <span>Available Slots for this date:</span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {slotSuggestions.map((slot) => {
+              const isSelected = time === slot.time24;
+              if (!slot.available) {
+                return (
+                  <span
+                    key={slot.time24}
+                    title={slot.conflictReason || "Slot booked"}
+                    className="rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-400 cursor-not-allowed line-through"
+                  >
+                    {slot.timeDisplay}
+                  </span>
+                );
+              }
+
+              return (
+                <button
+                  key={slot.time24}
+                  type="button"
+                  onClick={() => onTimeChange(slot.time24)}
+                  className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                    isSelected
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "border border-violet-200 bg-white text-violet-700 hover:border-violet-400 hover:bg-violet-50"
+                  }`}
+                >
+                  {slot.timeDisplay}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Duration */}
       <div className="mt-8">

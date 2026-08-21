@@ -214,3 +214,302 @@ export const checkSessionAccess = (
     status: "ALLOWED",
   };
 };
+
+/**
+ * Converts a date string ("YYYY-MM-DD" or "Month DD, YYYY") into a DayOfWeek ("monday" ... "sunday").
+ */
+export const getDayOfWeekFromDate = (dateStr: string | undefined): import("@/data/mentors").DayOfWeek | null => {
+  if (!dateStr) return null;
+  const trimmed = dateStr.trim();
+
+  let dateObj: Date;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const [y, m, d] = trimmed.split("-").map(Number);
+    dateObj = new Date(y, m - 1, d);
+  } else {
+    dateObj = new Date(trimmed);
+  }
+
+  if (isNaN(dateObj.getTime())) return null;
+
+  const dayIndex = dateObj.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const days: import("@/data/mentors").DayOfWeek[] = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
+  return days[dayIndex];
+};
+
+/**
+ * Converts "17:00" to "5:00 PM", "09:30" to "9:30 AM".
+ */
+export const formatTime24to12 = (time24: string): string => {
+  if (!time24) return "";
+  const parts = time24.split(":");
+  if (parts.length < 2) return time24;
+  let hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  if (isNaN(hours) || isNaN(minutes)) return time24;
+
+  const period = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours % 12 || 12;
+  const minsPadded = minutes.toString().padStart(2, "0");
+  return `${hour12}:${minsPadded} ${period}`;
+};
+
+/**
+ * Converts "5:00 PM" (or "17:00") to minutes from midnight (0..1439).
+ */
+export const parseTimeToMinutes = (timeStr: string | undefined): number | null => {
+  if (!timeStr) return null;
+  const startPart = formatStartTimeOnly(timeStr);
+
+  // 1. Try 24h "HH:MM"
+  if (/^\d{1,2}:\d{2}$/.test(startPart)) {
+    const [h, m] = startPart.split(":").map(Number);
+    return h * 60 + m;
+  }
+
+  // 2. Try 12h "H:MM AM/PM"
+  const match = startPart.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (!match) return null;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridian = match[3]?.toUpperCase();
+
+  if (meridian === "PM" && hours < 12) hours += 12;
+  if (meridian === "AM" && hours === 12) hours = 0;
+
+  return hours * 60 + minutes;
+};
+
+/**
+ * Checks if a session start time + duration fits completely inside the mentor's day availability.
+ */
+export const isTimeWithinAvailability = (
+  timeStr: string | undefined,
+  durationStr: string | undefined,
+  avail: import("@/data/mentors").DayAvailability | undefined
+): { valid: boolean; error?: string } => {
+  if (!avail || !avail.enabled) {
+    return { valid: false, error: "Mentor is not available on this day." };
+  }
+
+  const startMinutes = parseTimeToMinutes(timeStr);
+  if (startMinutes === null) {
+    return { valid: false, error: "Invalid session time selected." };
+  }
+
+  const durationMatch = durationStr?.match(/\d+/);
+  const durationMinutes = durationMatch ? parseInt(durationMatch[0], 10) : 60;
+  const endMinutes = startMinutes + durationMinutes;
+
+  const availStartMinutes = parseTimeToMinutes(avail.startTime) ?? 0;
+  const availEndMinutes = parseTimeToMinutes(avail.endTime) ?? 1440;
+
+  if (startMinutes < availStartMinutes) {
+    return {
+      valid: false,
+      error: `Session cannot start before mentor's availability (${formatTime24to12(avail.startTime)}).`,
+    };
+  }
+
+  if (endMinutes > availEndMinutes) {
+    return {
+      valid: false,
+      error: `A ${durationMinutes}-minute session starting at ${formatTime24to12(
+        `${Math.floor(startMinutes / 60)}:${(startMinutes % 60).toString().padStart(2, "0")}`
+      )} extends beyond mentor's available window (${formatTime24to12(avail.startTime)} – ${formatTime24to12(avail.endTime)}).`,
+    };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Detects conflicts between the requested slot and existing active (pending/upcoming) sessions.
+ */
+export const checkSlotConflict = (
+  dateStr: string | undefined,
+  timeStr: string | undefined,
+  durationStr: string | undefined,
+  sessions: Session[],
+  mentorId: string,
+  ignoreSessionId?: string
+): { hasConflict: boolean; conflictingSession?: Session; conflictReason?: string } => {
+  const reqStart = getSessionStartDateTime(dateStr, timeStr);
+  const reqEnd = getSessionEndDateTime(dateStr, timeStr, durationStr);
+
+  if (!reqStart || !reqEnd) {
+    return { hasConflict: false };
+  }
+
+  // Filter active sessions for the same mentor
+  const activeSessions = sessions.filter(
+    (s) =>
+      s.mentorId === mentorId &&
+      (s.status === "pending" || s.status === "upcoming") &&
+      s.id !== ignoreSessionId &&
+      !s.bookedAgain
+  );
+
+  for (const existing of activeSessions) {
+    const exStart = getSessionStartDateTime(existing.date, existing.time);
+    const exEnd = getSessionEndDateTime(existing.date, existing.time, existing.duration);
+
+    if (!exStart || !exEnd) continue;
+
+    // Range overlap: reqStart < exEnd AND exStart < reqEnd
+    if (reqStart.getTime() < exEnd.getTime() && exStart.getTime() < reqEnd.getTime()) {
+      const statusLabel = existing.status === "pending" ? "pending request" : "booked session";
+      return {
+        hasConflict: true,
+        conflictingSession: existing,
+        conflictReason: `This slot conflicts with an existing ${statusLabel} (${existing.time}) for ${existing.topic}.`,
+      };
+    }
+  }
+
+  return { hasConflict: false };
+};
+
+/**
+ * Comprehensive schedule validation pipeline for booking and rescheduling.
+ */
+export const validateSessionSchedule = (
+  mentor: User | undefined,
+  dateStr: string | undefined,
+  timeStr: string | undefined,
+  durationStr: string | undefined,
+  sessions: Session[],
+  ignoreSessionId?: string
+): { valid: boolean; error?: string } => {
+  if (!mentor) {
+    return { valid: false, error: "Mentor not found." };
+  }
+
+  // 1. Check if mentor has any availability configured
+  const hasAnyAvail = mentor.availability?.some((a) => a.enabled);
+  if (!hasAnyAvail) {
+    return { valid: false, error: "This mentor has no available teaching slots configured." };
+  }
+
+  // 2. Validate date is present
+  if (!dateStr || !dateStr.trim()) {
+    return { valid: false, error: "Please select a date." };
+  }
+
+  // 3. Validate day of the week
+  const dayOfWeek = getDayOfWeekFromDate(dateStr);
+  if (!dayOfWeek) {
+    return { valid: false, error: "Invalid date format." };
+  }
+
+  const dayAvail = mentor.availability.find((a) => a.day === dayOfWeek);
+  if (!dayAvail || !dayAvail.enabled) {
+    const availableDayNames = mentor.availability
+      .filter((a) => a.enabled)
+      .map((a) => a.day.charAt(0).toUpperCase() + a.day.slice(1))
+      .join(", ");
+    return {
+      valid: false,
+      error: `Mentor is not available on ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)}. Available days: ${availableDayNames || "None"}.`,
+    };
+  }
+
+  // 4. Validate time
+  if (!timeStr || !timeStr.trim()) {
+    return { valid: false, error: "Please select a preferred time." };
+  }
+
+  // 5. Validate time fits inside mentor's availability window
+  const windowCheck = isTimeWithinAvailability(timeStr, durationStr, dayAvail);
+  if (!windowCheck.valid) {
+    return windowCheck;
+  }
+
+  // 6. Validate conflict / double booking
+  const conflictCheck = checkSlotConflict(
+    dateStr,
+    timeStr,
+    durationStr,
+    sessions,
+    mentor.id,
+    ignoreSessionId
+  );
+  if (conflictCheck.hasConflict) {
+    return {
+      valid: false,
+      error: conflictCheck.conflictReason || "This slot conflicts with another active session.",
+    };
+  }
+
+  return { valid: true };
+};
+
+export type SlotSuggestion = {
+  time24: string;
+  timeDisplay: string;
+  available: boolean;
+  conflictReason?: string;
+};
+
+/**
+ * Returns available slot suggestions within the mentor's window for a given date.
+ */
+export const getAvailableSlotsForDate = (
+  mentor: User | undefined,
+  dateStr: string | undefined,
+  durationStr: string | undefined,
+  sessions: Session[],
+  ignoreSessionId?: string
+): SlotSuggestion[] => {
+  if (!mentor || !dateStr) return [];
+
+  const dayOfWeek = getDayOfWeekFromDate(dateStr);
+  if (!dayOfWeek) return [];
+
+  const dayAvail = mentor.availability?.find((a) => a.day === dayOfWeek && a.enabled);
+  if (!dayAvail) return [];
+
+  const startMinutes = parseTimeToMinutes(dayAvail.startTime);
+  const endMinutes = parseTimeToMinutes(dayAvail.endTime);
+  if (startMinutes === null || endMinutes === null) return [];
+
+  const durationMatch = durationStr?.match(/\d+/);
+  const durationMinutes = durationMatch ? parseInt(durationMatch[0], 10) : 60;
+
+  const slots: SlotSuggestion[] = [];
+
+  // Generate slots in 30-minute intervals
+  for (let m = startMinutes; m + durationMinutes <= endMinutes; m += 30) {
+    const hours = Math.floor(m / 60);
+    const mins = m % 60;
+    const time24 = `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
+    const timeDisplay = formatTime24to12(time24);
+
+    const conflict = checkSlotConflict(
+      dateStr,
+      time24,
+      durationStr,
+      sessions,
+      mentor.id,
+      ignoreSessionId
+    );
+
+    slots.push({
+      time24,
+      timeDisplay,
+      available: !conflict.hasConflict,
+      conflictReason: conflict.conflictReason,
+    });
+  }
+
+  return slots;
+};

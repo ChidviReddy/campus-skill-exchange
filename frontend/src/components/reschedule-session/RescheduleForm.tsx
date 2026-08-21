@@ -1,9 +1,22 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { CalendarDays, Clock3, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
+import {
+  CalendarDays,
+  Clock3,
+  CheckCircle2,
+  AlertCircle,
+  ArrowLeft,
+  Info,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
 import type { Session } from "@/data/sessions";
+import {
+  validateSessionSchedule,
+  getAvailableSlotsForDate,
+  getDayOfWeekFromDate,
+  formatTime24to12,
+} from "@/utils/sessionTime";
 
 type RescheduleFormProps = {
   session: Session;
@@ -54,7 +67,9 @@ const formatTimeString = (timeStr: string, durationStr: string): string => {
 
 const RescheduleForm = ({ session }: RescheduleFormProps) => {
   const navigate = useNavigate();
-  const { rescheduleSession } = useSessions();
+  const { rescheduleSession, sessions, getUserById } = useSessions();
+
+  const mentor = getUserById(session.mentorId);
 
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -64,6 +79,20 @@ const RescheduleForm = ({ session }: RescheduleFormProps) => {
 
   // Today's date in YYYY-MM-DD for min attribute
   const todayStr = new Date().toISOString().split("T")[0];
+
+  const enabledDays = mentor?.availability?.filter((a) => a.enabled) || [];
+  const selectedDayOfWeek = getDayOfWeekFromDate(date);
+  const selectedDayAvail = mentor?.availability?.find(
+    (a) => a.day === selectedDayOfWeek
+  );
+
+  const slotSuggestions = getAvailableSlotsForDate(
+    mentor,
+    date,
+    session.duration,
+    sessions,
+    session.id
+  );
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -83,6 +112,21 @@ const RescheduleForm = ({ session }: RescheduleFormProps) => {
     // Validation 2: Past date check
     if (date < todayStr) {
       setError("The selected date cannot be in the past. Please choose today or a future date.");
+      return;
+    }
+
+    // Validation 3: Mentor availability and conflict checks
+    const scheduleValidation = validateSessionSchedule(
+      mentor,
+      date,
+      time,
+      session.duration,
+      sessions,
+      session.id
+    );
+
+    if (!scheduleValidation.valid) {
+      setError(scheduleValidation.error || "The selected time slot is unavailable.");
       return;
     }
 
@@ -159,6 +203,34 @@ const RescheduleForm = ({ session }: RescheduleFormProps) => {
       </h2>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+        {/* Mentor Availability Guidance Banner */}
+        {mentor && (
+          <div className="rounded-2xl bg-violet-50/70 p-4 border border-violet-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-violet-900 font-medium">
+              <Info size={18} className="text-violet-600 shrink-0" />
+              <span>
+                {enabledDays.length > 0 ? (
+                  <>
+                    <strong className="font-semibold">{mentor.name}'s Teaching Days:</strong>{" "}
+                    {enabledDays
+                      .map(
+                        (a) =>
+                          `${a.day.charAt(0).toUpperCase() + a.day.slice(1)} (${formatTime24to12(
+                            a.startTime
+                          )} – ${formatTime24to12(a.endTime)})`
+                      )
+                      .join(", ")}
+                  </>
+                ) : (
+                  <span className="text-amber-700 font-semibold">
+                    This mentor has no available teaching slots configured.
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Error notification */}
         {error && (
           <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -189,9 +261,19 @@ const RescheduleForm = ({ session }: RescheduleFormProps) => {
                 className="w-full rounded-xl border border-violet-100 bg-slate-50/50 p-3.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100 cursor-pointer"
               />
             </div>
-            <p className="mt-1.5 text-xs text-slate-400">
-              Select today or any upcoming date.
-            </p>
+            {date && selectedDayOfWeek && (
+              <p className="mt-1.5 text-xs font-medium text-slate-500">
+                Selected: <span className="capitalize font-semibold text-violet-700">{selectedDayOfWeek}</span>
+                {selectedDayAvail?.enabled ? (
+                  <span className="text-green-600 font-medium">
+                    {" "}
+                    (Available {formatTime24to12(selectedDayAvail.startTime)} – {formatTime24to12(selectedDayAvail.endTime)})
+                  </span>
+                ) : (
+                  <span className="text-red-500 font-medium"> (Mentor not available on this day)</span>
+                )}
+              </p>
+            )}
           </div>
 
           {/* New Time */}
@@ -219,6 +301,51 @@ const RescheduleForm = ({ session }: RescheduleFormProps) => {
             </p>
           </div>
         </div>
+
+        {/* Available Slots Pills */}
+        {date && slotSuggestions.length > 0 && (
+          <div className="rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-violet-900 uppercase tracking-wider">
+              <CheckCircle2 size={14} className="text-violet-600" />
+              <span>Available Slots for this date:</span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {slotSuggestions.map((slot) => {
+                const isSelected = time === slot.time24;
+                if (!slot.available) {
+                  return (
+                    <span
+                      key={slot.time24}
+                      title={slot.conflictReason || "Slot booked"}
+                      className="rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-400 cursor-not-allowed line-through"
+                    >
+                      {slot.timeDisplay}
+                    </span>
+                  );
+                }
+
+                return (
+                  <button
+                    key={slot.time24}
+                    type="button"
+                    onClick={() => {
+                      setTime(slot.time24);
+                      if (error) setError(null);
+                    }}
+                    className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                      isSelected
+                        ? "bg-violet-600 text-white shadow-sm"
+                        : "border border-violet-200 bg-white text-violet-700 hover:border-violet-400 hover:bg-violet-50"
+                    }`}
+                  >
+                    {slot.timeDisplay}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Buttons */}
         <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:justify-end">

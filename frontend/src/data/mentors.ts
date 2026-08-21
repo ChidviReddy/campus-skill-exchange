@@ -1,3 +1,29 @@
+export type DayOfWeek =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+export interface DayAvailability {
+  day: DayOfWeek;
+  enabled: boolean;
+  startTime: string; // 24h format e.g. "17:00"
+  endTime: string;   // 24h format e.g. "20:00"
+}
+
+export const createDefaultAvailability = (): DayAvailability[] => [
+  { day: "monday", enabled: true, startTime: "17:00", endTime: "20:00" },
+  { day: "tuesday", enabled: false, startTime: "17:00", endTime: "20:00" },
+  { day: "wednesday", enabled: true, startTime: "16:00", endTime: "19:00" },
+  { day: "thursday", enabled: false, startTime: "17:00", endTime: "20:00" },
+  { day: "friday", enabled: true, startTime: "17:00", endTime: "20:00" },
+  { day: "saturday", enabled: false, startTime: "14:00", endTime: "18:00" },
+  { day: "sunday", enabled: false, startTime: "14:00", endTime: "18:00" },
+];
+
 export interface User {
   id: string;
   name: string;
@@ -18,6 +44,7 @@ export interface User {
   languages: string;
   email?: string;
   location?: string;
+  availability: DayAvailability[];
 }
 
 export type Mentor = User;
@@ -41,6 +68,15 @@ export const mentors: User[] = [
     experienceYears: "2+ Years",
     projectsBuilt: "15+",
     languages: "English, Hindi",
+    availability: [
+      { day: "monday", enabled: true, startTime: "17:00", endTime: "20:00" },
+      { day: "tuesday", enabled: false, startTime: "17:00", endTime: "20:00" },
+      { day: "wednesday", enabled: true, startTime: "16:00", endTime: "19:00" },
+      { day: "thursday", enabled: false, startTime: "17:00", endTime: "20:00" },
+      { day: "friday", enabled: true, startTime: "17:00", endTime: "20:00" },
+      { day: "saturday", enabled: false, startTime: "14:00", endTime: "18:00" },
+      { day: "sunday", enabled: false, startTime: "14:00", endTime: "18:00" },
+    ],
   },
   {
     id: "2",
@@ -60,6 +96,15 @@ export const mentors: User[] = [
     experienceYears: "2 Years",
     projectsBuilt: "10+",
     languages: "English, Hindi",
+    availability: [
+      { day: "monday", enabled: false, startTime: "18:00", endTime: "21:00" },
+      { day: "tuesday", enabled: true, startTime: "18:00", endTime: "21:00" },
+      { day: "wednesday", enabled: false, startTime: "18:00", endTime: "21:00" },
+      { day: "thursday", enabled: false, startTime: "18:00", endTime: "21:00" },
+      { day: "friday", enabled: true, startTime: "16:00", endTime: "19:00" },
+      { day: "saturday", enabled: false, startTime: "14:00", endTime: "18:00" },
+      { day: "sunday", enabled: false, startTime: "14:00", endTime: "18:00" },
+    ],
   },
   {
     id: "3",
@@ -79,6 +124,15 @@ export const mentors: User[] = [
     experienceYears: "3+ Years",
     projectsBuilt: "20+",
     languages: "English, Telugu",
+    availability: [
+      { day: "monday", enabled: true, startTime: "15:00", endTime: "18:00" },
+      { day: "tuesday", enabled: true, startTime: "15:00", endTime: "18:00" },
+      { day: "wednesday", enabled: true, startTime: "15:00", endTime: "18:00" },
+      { day: "thursday", enabled: true, startTime: "15:00", endTime: "18:00" },
+      { day: "friday", enabled: true, startTime: "15:00", endTime: "18:00" },
+      { day: "saturday", enabled: false, startTime: "14:00", endTime: "18:00" },
+      { day: "sunday", enabled: false, startTime: "14:00", endTime: "18:00" },
+    ],
   },
   {
     id: "4",
@@ -98,6 +152,15 @@ export const mentors: User[] = [
     experienceYears: "2+ Years",
     projectsBuilt: "12+",
     languages: "English, Hindi",
+    availability: [
+      { day: "monday", enabled: false, startTime: "18:00", endTime: "21:00" },
+      { day: "tuesday", enabled: true, startTime: "18:00", endTime: "21:00" },
+      { day: "wednesday", enabled: false, startTime: "18:00", endTime: "21:00" },
+      { day: "thursday", enabled: true, startTime: "18:00", endTime: "21:00" },
+      { day: "friday", enabled: false, startTime: "18:00", endTime: "21:00" },
+      { day: "saturday", enabled: true, startTime: "18:00", endTime: "21:00" },
+      { day: "sunday", enabled: false, startTime: "14:00", endTime: "18:00" },
+    ],
   },
   {
     id: "5",
@@ -117,6 +180,15 @@ export const mentors: User[] = [
     experienceYears: "3 Years",
     projectsBuilt: "18+",
     languages: "English, Hindi",
+    availability: [
+      { day: "monday", enabled: false, startTime: "17:00", endTime: "20:00" },
+      { day: "tuesday", enabled: false, startTime: "17:00", endTime: "20:00" },
+      { day: "wednesday", enabled: true, startTime: "17:00", endTime: "20:00" },
+      { day: "thursday", enabled: false, startTime: "17:00", endTime: "20:00" },
+      { day: "friday", enabled: true, startTime: "17:00", endTime: "20:00" },
+      { day: "saturday", enabled: false, startTime: "14:00", endTime: "18:00" },
+      { day: "sunday", enabled: false, startTime: "14:00", endTime: "18:00" },
+    ],
   },
   {
     id: "6",
@@ -136,6 +208,15 @@ export const mentors: User[] = [
     experienceYears: "3+ Years",
     projectsBuilt: "14+",
     languages: "English, Tamil",
+    availability: [
+      { day: "monday", enabled: true, startTime: "16:00", endTime: "19:00" },
+      { day: "tuesday", enabled: false, startTime: "16:00", endTime: "19:00" },
+      { day: "wednesday", enabled: true, startTime: "16:00", endTime: "19:00" },
+      { day: "thursday", enabled: false, startTime: "16:00", endTime: "19:00" },
+      { day: "friday", enabled: false, startTime: "16:00", endTime: "19:00" },
+      { day: "saturday", enabled: true, startTime: "16:00", endTime: "19:00" },
+      { day: "sunday", enabled: false, startTime: "14:00", endTime: "18:00" },
+    ],
   },
   {
     id: "chidvi",
@@ -155,6 +236,15 @@ export const mentors: User[] = [
     experienceYears: "2 Years",
     projectsBuilt: "8+",
     languages: "English",
+    availability: [
+      { day: "monday", enabled: true, startTime: "18:00", endTime: "21:00" },
+      { day: "tuesday", enabled: true, startTime: "18:00", endTime: "21:00" },
+      { day: "wednesday", enabled: false, startTime: "18:00", endTime: "21:00" },
+      { day: "thursday", enabled: true, startTime: "17:00", endTime: "20:00" },
+      { day: "friday", enabled: false, startTime: "18:00", endTime: "21:00" },
+      { day: "saturday", enabled: false, startTime: "14:00", endTime: "18:00" },
+      { day: "sunday", enabled: false, startTime: "14:00", endTime: "18:00" },
+    ],
   },
 ];
 

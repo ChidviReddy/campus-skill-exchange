@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
 import { useWallet } from "@/hooks/useWallet";
 import type { Session } from "@/data/sessions";
+import { validateSessionSchedule } from "@/utils/sessionTime";
 
 import Sidebar from "../dashboard/Sidebar";
 import Topbar from "../dashboard/Topbar";
@@ -121,20 +122,22 @@ const RequestLayout = ({
   isBookAgain = false,
 }: RequestLayoutProps) => {
   const navigate = useNavigate();
-  const { sessions, addSession, currentUser } = useSessions();
+  const { sessions, addSession, currentUser, getUserById } = useSessions();
   const { canAffordBooking } = useWallet();
 
   const effectiveMentorId = mentor?.id || sourceSession?.mentorId || "1";
-  const effectiveMentorName = mentor?.name || sourceSession?.mentor || "Priya Sharma";
-  const effectiveMentorRole = mentor?.role || sourceSession?.mentorRole || "React Developer";
-  const effectiveMentorRating = mentor?.rating ?? sourceSession?.mentorRating ?? 4.9;
-  const effectiveReviewCount = mentor?.reviewCount ?? sourceSession?.reviewCount ?? 42;
-  const effectiveMentorAvatar = mentor?.avatar || sourceSession?.mentorAvatar;
-  const effectiveTeachingSkill = mentor?.teachingSkill || sourceSession?.teachingSkill || "React & Frontend Development";
+  const effectiveMentor = getUserById(effectiveMentorId) || mentor;
+
+  const effectiveMentorName = effectiveMentor?.name || mentor?.name || sourceSession?.mentor || "Priya Sharma";
+  const effectiveMentorRole = effectiveMentor?.role || mentor?.role || sourceSession?.mentorRole || "React Developer";
+  const effectiveMentorRating = effectiveMentor?.rating ?? mentor?.rating ?? sourceSession?.mentorRating ?? 4.9;
+  const effectiveReviewCount = effectiveMentor?.reviewCount ?? mentor?.reviewCount ?? sourceSession?.reviewCount ?? 42;
+  const effectiveMentorAvatar = effectiveMentor?.avatar || mentor?.avatar || sourceSession?.mentorAvatar;
+  const effectiveTeachingSkill = effectiveMentor?.teachingSkill || mentor?.teachingSkill || sourceSession?.teachingSkill || "React & Frontend Development";
 
   // Initial values pre-filled from mentor or cancelled session if available
   const [topic, setTopic] = useState(
-    sourceSession?.topic || mentor?.teachingSkill || (mentor?.teaches && mentor.teaches[0]) || ""
+    sourceSession?.topic || effectiveMentor?.teachingSkill || (effectiveMentor?.teaches && effectiveMentor.teaches[0]) || ""
   );
   const [goal, setGoal] = useState(sourceSession?.learnerGoal || "");
   const [date, setDate] = useState(parseDateToInputValue(sourceSession?.date || ""));
@@ -205,7 +208,24 @@ const RequestLayout = ({
       hasError = true;
     }
 
-    // 6. Community guidelines agreement
+    // 6. Mentor Availability & Schedule Conflict Validation
+    if (date.trim() && time.trim()) {
+      const scheduleValidation = validateSessionSchedule(
+        effectiveMentor,
+        date,
+        time,
+        duration,
+        sessions,
+        isBookAgain ? sourceSession?.id : undefined
+      );
+
+      if (!scheduleValidation.valid) {
+        setSubmitError(scheduleValidation.error);
+        hasError = true;
+      }
+    }
+
+    // 7. Community guidelines agreement
     if (!agreed) {
       setSubmitError("Please agree to the community guidelines before sending the request.");
       hasError = true;
@@ -284,6 +304,8 @@ const RequestLayout = ({
             />
 
             <ScheduleCard
+              mentor={effectiveMentor}
+              sessions={sessions}
               date={date}
               time={time}
               duration={duration}
@@ -298,6 +320,7 @@ const RequestLayout = ({
               onDurationChange={(val) => setDuration(val)}
               dateError={dateError}
               timeError={timeError}
+              ignoreSessionId={isBookAgain ? sourceSession?.id : undefined}
             />
           </div>
 

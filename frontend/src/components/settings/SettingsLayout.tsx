@@ -5,16 +5,12 @@ import Topbar from "../dashboard/Topbar";
 
 import SettingsHeader from "./SettingsHeader";
 import SettingsSidebar from "./SettingsSidebar";
+import type { SettingsSection } from "./SettingsSidebar";
 import SettingsContent from "./SettingsContent";
+import AvailabilitySettings from "./AvailabilitySettings";
 import SkillsInterestsSettings from "./SkillsInterestsSettings";
 import NotificationSettings from "./NotificationSettings";
 import SecuritySettings from "./SecuritySettings";
-
-type SettingsSection =
-  | "profile"
-  | "skills"
-  | "notifications"
-  | "security";
 
 const SettingsLayout = () => {
   const [activeSection, setActiveSection] =
@@ -39,17 +35,19 @@ const SettingsLayout = () => {
 
               {activeSection === "profile" && <SettingsContent />}
 
+              {activeSection === "availability" && <AvailabilitySettings />}
+
               {activeSection === "skills" && (
                 <SkillsInterestsSettings />
               )}
 
               {activeSection === "notifications" && (
                 <NotificationSettings />
-                )}
+              )}
 
               {activeSection === "security" && (
                 <SecuritySettings />
-                )}
+              )}
             </div>
           </div>
         </div>

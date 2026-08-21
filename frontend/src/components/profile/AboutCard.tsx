@@ -63,6 +63,30 @@ const AboutCard = ({ mentor = mentors[0] }: AboutCardProps) => {
           </p>
         </div>
       </div>
+
+      {/* Weekly Teaching Schedule */}
+      {mentor.availability && mentor.availability.filter((a) => a.enabled).length > 0 && (
+        <div className="mt-6 rounded-2xl border border-violet-100 bg-violet-50/50 p-5">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+            Teaching Hours
+          </h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {mentor.availability
+              .filter((a) => a.enabled)
+              .map((a) => {
+                const dayName = a.day.charAt(0).toUpperCase() + a.day.slice(1);
+                return (
+                  <span
+                    key={a.day}
+                    className="inline-flex items-center rounded-xl border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-800 shadow-2xs"
+                  >
+                    {dayName}: {a.startTime} – {a.endTime}
+                  </span>
+                );
+              })}
+          </div>
+        </div>
+      )}
     </section>
   );
 };
