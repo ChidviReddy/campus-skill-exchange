@@ -2,6 +2,8 @@ import { ArrowLeft, CalendarDays, Clock3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
 
+import { useSessions } from "@/hooks/useSessions";
+
 type SessionRoomHeaderProps = {
   session: Session;
 };
@@ -34,7 +36,22 @@ const statusStyles: Record<
 
 const SessionRoomHeader = ({ session }: SessionRoomHeaderProps) => {
   const navigate = useNavigate();
-  const currentStatus = statusStyles[session.status];
+  const { currentUser } = useSessions();
+  const isMentor = currentUser.id === session.mentorId;
+  const isStarted = !!session.isStarted;
+
+  let badgeClass = statusStyles[session.status]?.badge || "bg-violet-100 text-violet-700";
+  let badgeText = statusStyles[session.status]?.text || session.status;
+
+  if (session.status === "upcoming") {
+    if (isStarted) {
+      badgeClass = "bg-emerald-100 text-emerald-700 border border-emerald-200 animate-pulse";
+      badgeText = "● Live Session In Progress";
+    } else {
+      badgeClass = isMentor ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-violet-100 text-violet-700 border border-violet-200";
+      badgeText = isMentor ? "Ready to Start" : "Waiting Room";
+    }
+  }
 
   return (
     <section>
@@ -71,14 +88,14 @@ const SessionRoomHeader = ({ session }: SessionRoomHeaderProps) => {
             </h1>
 
             <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${currentStatus.badge}`}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
             >
-              {currentStatus.text}
+              {badgeText}
             </span>
           </div>
 
           <p className="mt-2 text-base text-slate-500">
-            Mentor: <span className="font-medium text-slate-700">{session.mentor}</span> ({session.mentorRole})
+            Mentor: <span className="font-medium text-slate-700">{session.mentor}</span> ({session.mentorRole}) · Learner: <span className="font-medium text-slate-700">{session.learnerName || "Student"}</span>
           </p>
         </div>
 

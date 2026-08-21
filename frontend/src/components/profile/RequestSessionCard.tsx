@@ -3,24 +3,31 @@ import {
   Clock,
   Coins,
   CheckCircle,
+  UserCheck,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { mentors } from "@/data/mentors";
 import type { Mentor } from "@/data/mentors";
+import { useSessions } from "@/hooks/useSessions";
 
 type RequestSessionCardProps = {
   mentor?: Mentor;
 };
 
 const RequestSessionCard = ({ mentor = mentors[0] }: RequestSessionCardProps) => {
+  const { currentUser } = useSessions();
+  const isOwnProfile = currentUser.id === mentor.id;
+
   return (
     <div className="sticky top-8 rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
       <h2 className="text-2xl font-bold text-slate-900">
-        Request Session
+        {isOwnProfile ? "Your Mentor Profile" : "Request Session"}
       </h2>
 
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        Book a personalized learning session with {mentor.name}.
+        {isOwnProfile
+          ? "This is your public profile as viewed by other campus learners."
+          : `Book a personalized learning session with ${mentor.name}.`}
       </p>
 
       {/* Session Details */}
@@ -108,16 +115,33 @@ const RequestSessionCard = ({ mentor = mentors[0] }: RequestSessionCardProps) =>
       </div>
 
       {/* CTA */}
-      <Link
-        to={`/request-session/${mentor.id}`}
-        className="cursor-pointer mt-8 block w-full rounded-xl bg-violet-600 py-4 text-center text-base font-semibold text-white transition-all duration-200 hover:bg-violet-700 hover:shadow-lg"
-      >
-        Request Session
-      </Link>
+      {isOwnProfile ? (
+        <div className="mt-8 space-y-3">
+          <div className="flex items-center gap-2 rounded-xl bg-violet-50 p-3.5 text-xs font-medium text-violet-800">
+            <UserCheck size={18} className="shrink-0 text-violet-600" />
+            <span>You cannot book a session with yourself.</span>
+          </div>
+          <Link
+            to="/settings"
+            className="cursor-pointer block w-full rounded-xl border border-violet-200 bg-white py-3.5 text-center text-sm font-semibold text-violet-700 transition-all duration-200 hover:bg-violet-50"
+          >
+            Edit Your Profile & Skills
+          </Link>
+        </div>
+      ) : (
+        <>
+          <Link
+            to={`/request-session/${mentor.id}`}
+            className="cursor-pointer mt-8 block w-full rounded-xl bg-violet-600 py-4 text-center text-base font-semibold text-white transition-all duration-200 hover:bg-violet-700 hover:shadow-lg"
+          >
+            Request Session
+          </Link>
 
-      <p className="mt-3 text-center text-xs text-slate-500">
-        Credits will only be deducted after the request is completed.
-      </p>
+          <p className="mt-3 text-center text-xs text-slate-500">
+            Credits will only be deducted after the request is completed.
+          </p>
+        </>
+      )}
     </div>
   );
 };

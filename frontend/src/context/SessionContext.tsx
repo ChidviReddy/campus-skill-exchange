@@ -8,12 +8,17 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { users, getUserById } from "@/data/mentors";
 import type { User } from "@/data/mentors";
 
+import { isSessionBeforeStart } from "@/utils/sessionTime";
+
 export interface SessionReview {
   sessionId: string;
+  reviewerId: string;
+  revieweeId: string;
   mentor: string;
   topic: string;
   rating: number;
   reviewText: string;
+  comment?: string;
   submittedAt: string;
 }
 
@@ -36,11 +41,13 @@ export interface SessionContextType {
   cancelRequest: (id: string) => boolean;
   acceptRequest: (id: string) => boolean;
   rejectRequest: (id: string) => boolean;
+  startSession: (id: string) => { success: boolean; error?: string };
+  endSession: (id: string) => { success: boolean; error?: string };
   completeSession: (
     id: string,
     roleOverride?: "mentor" | "learner"
   ) => { success: boolean; error?: string };
-  submitReview: (review: Omit<SessionReview, "submittedAt">) => boolean;
+  submitReview: (review: Omit<SessionReview, "submittedAt" | "reviewerId" | "revieweeId"> & { reviewerId?: string; revieweeId?: string }) => boolean;
   addSession: (session: Session, replacedSessionId?: string) => void;
 }
 
@@ -220,6 +227,55 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
+  // Mentor starts the session at or after scheduled start time
+  const startSession = (id: string): { success: boolean; error?: string } => {
+    const targetSession = sessions.find((s) => s.id === id);
+    if (!targetSession) {
+      return { success: false, error: "Session not found" };
+    }
+
+    if (targetSession.status !== "upcoming") {
+      return { success: false, error: `Cannot start a session with status '${targetSession.status}'` };
+    }
+
+    if (currentUser.id !== targetSession.mentorId) {
+      return { success: false, error: "Only the mentor can start the session." };
+    }
+
+    if (isSessionBeforeStart(targetSession.date, targetSession.time)) {
+      return { success: false, error: "Cannot start the session before the scheduled start time." };
+    }
+
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id === id) {
+          return {
+            ...s,
+            isStarted: true,
+            startedAt: new Date().toISOString(),
+          };
+        }
+        return s;
+      })
+    );
+
+    return { success: true };
+  };
+
+  // Mentor ends the session -> completes session & processes credit exchange (-5 learner, +10 mentor)
+  const endSession = (id: string): { success: boolean; error?: string } => {
+    const targetSession = sessions.find((s) => s.id === id);
+    if (!targetSession) {
+      return { success: false, error: "Session not found" };
+    }
+
+    if (currentUser.id !== targetSession.mentorId) {
+      return { success: false, error: "Only the mentor can end the session." };
+    }
+
+    return completeSession(id);
+  };
+
   const completeSession = (
     id: string,
     roleOverride?: "mentor" | "learner"
@@ -245,6 +301,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           return {
             ...s,
             status: "completed",
+            isStarted: false,
             role: roleOverride || s.role || "learner",
           };
         }
@@ -256,15 +313,34 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const submitReview = (
-    review: Omit<SessionReview, "submittedAt">
+    review: Omit<SessionReview, "submittedAt" | "reviewerId" | "revieweeId"> & { reviewerId?: string; revieweeId?: string }
   ): boolean => {
     if (reviews.some((item) => item.sessionId === review.sessionId)) {
       return false;
     }
+
+    const targetSession = sessions.find((s) => s.id === review.sessionId);
+    if (!targetSession || targetSession.status !== "completed") {
+      return false;
+    }
+
+    // Strictly enforce that only the learner can review the mentor
+    if (currentUser.id !== targetSession.learnerId) {
+      return false;
+    }
+
     const newReview: SessionReview = {
-      ...review,
+      sessionId: review.sessionId,
+      reviewerId: targetSession.learnerId,
+      revieweeId: targetSession.mentorId,
+      mentor: targetSession.mentor,
+      topic: targetSession.topic,
+      rating: review.rating,
+      reviewText: review.reviewText,
+      comment: review.comment || review.reviewText,
       submittedAt: new Date().toISOString(),
     };
+
     setReviews((prev) => [...prev, newReview]);
     return true;
   };
@@ -288,6 +364,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         cancelRequest,
         acceptRequest,
         rejectRequest,
+        startSession,
+        endSession,
         completeSession,
         submitReview,
         addSession,

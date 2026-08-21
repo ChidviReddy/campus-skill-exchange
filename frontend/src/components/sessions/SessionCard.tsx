@@ -8,6 +8,8 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import type { Session } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
+import { isSessionBeforeStart, formatStartTimeOnly } from "@/utils/sessionTime";
 import CancelSessionModal from "./CancelSessionModal";
 import CancelRequestModal from "./CancelRequestModal";
 
@@ -49,10 +51,17 @@ const SessionCard = (session: SessionCardProps) => {
     duration,
     credits,
     status,
+    learnerId,
   } = session;
   const navigate = useNavigate();
+  const { currentUser, reviews } = useSessions();
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
+
+  const isLearner = currentUser.id === learnerId;
+  const hasReview = reviews.some((r) => r.sessionId === id);
+  const isBeforeStart = isSessionBeforeStart(date, time);
+  const startTimeDisplay = formatStartTimeOnly(time);
 
   const currentStatus = statusStyles[status];
 
@@ -141,16 +150,30 @@ const SessionCard = (session: SessionCardProps) => {
         {/* Upcoming */}
         {status === "upcoming" && (
           <>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                navigate(`/session-room/${id}`);
-              }}
-              className="cursor-pointer rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition-all hover:bg-violet-700"
-            >
-              Join Session
-            </button>
+            {isBeforeStart ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  navigate(`/session-room/${id}`);
+                }}
+                className="cursor-pointer rounded-xl bg-violet-100 px-6 py-3 font-semibold text-violet-700 transition-all hover:bg-violet-200"
+                title={`Session starts at ${startTimeDisplay}`}
+              >
+                Starts at {startTimeDisplay}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  navigate(`/session-room/${id}`);
+                }}
+                className="cursor-pointer rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition-all hover:bg-violet-700"
+              >
+                Join Session
+              </button>
+            )}
 
             <button
               type="button"
@@ -206,16 +229,32 @@ const SessionCard = (session: SessionCardProps) => {
               View Notes
             </button>
 
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                navigate(`/review-session/${id}`);
-              }}
-              className="cursor-pointer rounded-xl border border-violet-200 px-6 py-3 font-semibold text-violet-700 transition-all hover:bg-violet-50"
-            >
-              Leave Review
-            </button>
+            {/* ONLY THE LEARNER CAN LEAVE A REVIEW */}
+            {isLearner && (
+              hasReview ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/review-session/${id}`);
+                  }}
+                  className="cursor-pointer rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-3 font-semibold text-emerald-700 transition-all hover:bg-emerald-100"
+                >
+                  Review Submitted
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/review-session/${id}`);
+                  }}
+                  className="cursor-pointer rounded-xl border border-violet-200 px-6 py-3 font-semibold text-violet-700 transition-all hover:bg-violet-50"
+                >
+                  Leave Review
+                </button>
+              )
+            )}
           </>
         )}
 

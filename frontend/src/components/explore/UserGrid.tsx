@@ -1,11 +1,15 @@
 import { mentors } from "@/data/mentors";
+import { useSessions } from "@/hooks/useSessions";
 import UserCard from "./UserCard";
 
 const UserGrid = () => {
+  const { currentUser } = useSessions();
+  const visibleMentors = mentors.filter((user) => user.id !== currentUser.id);
+
   return (
     <section className="mt-8">
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {mentors.map((user) => (
+        {visibleMentors.map((user) => (
           <UserCard
             key={user.id}
             id={user.id}

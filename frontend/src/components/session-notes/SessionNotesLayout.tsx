@@ -12,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
 import type { SessionNote } from "@/data/sessionNotes";
+import { useSessions } from "@/hooks/useSessions";
 import Sidebar from "../dashboard/Sidebar";
 import Topbar from "../dashboard/Topbar";
 
@@ -22,6 +23,9 @@ type SessionNotesLayoutProps = {
 
 const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
   const navigate = useNavigate();
+  const { currentUser, reviews } = useSessions();
+  const isLearner = currentUser.id === session.learnerId;
+  const hasReview = reviews.some((r) => r.sessionId === session.id);
 
   return (
     <div className="flex min-h-screen bg-[#f8f7fc]">
@@ -224,13 +228,25 @@ const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
                 Back to My Sessions
               </button>
 
-              <button
-                type="button"
-                onClick={() => navigate(`/review-session/${session.id}`)}
-                className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-7 py-3.5 font-semibold text-white shadow-sm transition hover:bg-violet-700 hover:shadow-md"
-              >
-                Leave Review for Mentor
-              </button>
+              {isLearner && (
+                hasReview ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/review-session/${session.id}`)}
+                    className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-7 py-3.5 font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                  >
+                    Review Submitted
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/review-session/${session.id}`)}
+                    className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-7 py-3.5 font-semibold text-white shadow-sm transition hover:bg-violet-700 hover:shadow-md"
+                  >
+                    Leave Review for Mentor
+                  </button>
+                )
+              )}
             </div>
           </div>
         </div>

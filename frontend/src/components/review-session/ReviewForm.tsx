@@ -32,10 +32,13 @@ const ReviewForm = ({ session, onSuccess }: ReviewFormProps) => {
 
     const reviewPayload = {
       sessionId: session.id,
+      reviewerId: session.learnerId,
+      revieweeId: session.mentorId,
       mentor: session.mentor,
       topic: session.topic,
       rating,
       reviewText: reviewText.trim(),
+      comment: reviewText.trim(),
     };
 
     const success = submitReview(reviewPayload);
@@ -45,7 +48,7 @@ const ReviewForm = ({ session, onSuccess }: ReviewFormProps) => {
         submittedAt: new Date().toISOString(),
       });
     } else {
-      setError("You have already submitted a review for this session.");
+      setError("Unable to submit review. You may have already submitted a review or are not eligible to review this session.");
     }
   };
 

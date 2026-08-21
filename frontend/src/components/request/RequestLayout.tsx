@@ -166,25 +166,31 @@ const RequestLayout = ({
     setTimeError(undefined);
     setSubmitError(undefined);
 
-    // 0. Credits check
+    // 0. Prevent self-booking
+    if (currentUser.id === effectiveMentorId) {
+      setSubmitError("You cannot book a session with yourself.");
+      hasError = true;
+    }
+
+    // 1. Credits check
     if (!canAffordBooking(5)) {
       setSubmitError("Insufficient credits. At least 5 credits are required to book this session.");
       hasError = true;
     }
 
-    // 1. Topic validation
+    // 2. Topic validation
     if (!topic.trim()) {
       setTopicError("Please enter a session topic.");
       hasError = true;
     }
 
-    // 2. Goal validation
+    // 3. Goal validation
     if (!goal.trim()) {
       setGoalError("Please describe your learning goals.");
       hasError = true;
     }
 
-    // 3. Date validation
+    // 4. Date validation
     if (!date.trim()) {
       setDateError("Please select a preferred date.");
       hasError = true;
@@ -193,13 +199,13 @@ const RequestLayout = ({
       hasError = true;
     }
 
-    // 4. Time validation
+    // 5. Time validation
     if (!time.trim()) {
       setTimeError("Please select a preferred time.");
       hasError = true;
     }
 
-    // 5. Community guidelines agreement
+    // 6. Community guidelines agreement
     if (!agreed) {
       setSubmitError("Please agree to the community guidelines before sending the request.");
       hasError = true;

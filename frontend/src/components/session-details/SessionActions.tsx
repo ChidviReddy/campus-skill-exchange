@@ -11,6 +11,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
 import { useSessions } from "@/hooks/useSessions";
+import { isSessionBeforeStart, formatStartTimeOnly } from "@/utils/sessionTime";
 import CancelSessionModal from "../sessions/CancelSessionModal";
 import CancelRequestModal from "../sessions/CancelRequestModal";
 import AcceptRequestModal from "../mentor-requests/AcceptRequestModal";
@@ -22,13 +23,17 @@ type SessionActionsProps = {
 
 const SessionActions = ({ session }: SessionActionsProps) => {
   const navigate = useNavigate();
-  const { currentUser, acceptRequest, rejectRequest } = useSessions();
+  const { currentUser, reviews, acceptRequest, rejectRequest } = useSessions();
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
   const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
   const isMentorForThisSession = currentUser.id === session.mentorId;
+  const isLearnerForThisSession = currentUser.id === session.learnerId;
+  const hasReview = reviews.some((r) => r.sessionId === session.id);
+  const isBeforeStart = isSessionBeforeStart(session.date, session.time);
+  const startTimeDisplay = formatStartTimeOnly(session.time);
 
   if (session.status === "rejected") {
     return (
@@ -244,7 +249,9 @@ const SessionActions = ({ session }: SessionActionsProps) => {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Review session notes or leave feedback for your mentor.
+              {isLearnerForThisSession
+                ? "Review session notes or leave feedback for your mentor."
+                : "Your teaching session is completed and credits have been awarded."}
             </p>
           </div>
 
@@ -257,13 +264,27 @@ const SessionActions = ({ session }: SessionActionsProps) => {
               <FileText size={18} />
               View Notes
             </button>
-            <button
-              type="button"
-              onClick={() => navigate(`/review-session/${session.id}`)}
-              className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-violet-200 bg-white px-6 py-3 text-sm font-semibold text-violet-700 transition hover:bg-violet-50"
-            >
-              Leave Review
-            </button>
+
+            {/* ONLY THE LEARNER CAN LEAVE A REVIEW */}
+            {isLearnerForThisSession && (
+              hasReview ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/review-session/${session.id}`)}
+                  className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                >
+                  Review Submitted
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/review-session/${session.id}`)}
+                  className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-violet-200 bg-white px-6 py-3 text-sm font-semibold text-violet-700 transition hover:bg-violet-50"
+                >
+                  Leave Review
+                </button>
+              )
+            )}
           </div>
         </div>
       </section>
@@ -280,18 +301,32 @@ const SessionActions = ({ session }: SessionActionsProps) => {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Join the session when it's time, or manage your booking.
+              {isBeforeStart
+                ? `Session opens on ${session.date} at ${startTimeDisplay}.`
+                : "Session is ready. Enter the room now."}
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate(`/session-room/${session.id}`)}
-            className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-7 py-3 font-semibold text-white transition hover:bg-violet-700 hover:shadow-md"
-          >
-            <Video size={19} />
-            Join Session
-          </button>
+          {isBeforeStart ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/session-room/${session.id}`)}
+              className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-100 px-6 py-3 font-semibold text-violet-700 transition hover:bg-violet-200"
+              title={`Session starts at ${startTimeDisplay}`}
+            >
+              <Video size={19} />
+              Starts at {startTimeDisplay}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate(`/session-room/${session.id}`)}
+              className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-7 py-3 font-semibold text-white transition hover:bg-violet-700 hover:shadow-md"
+            >
+              <Video size={19} />
+              Join Session
+            </button>
+          )}
         </div>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row">

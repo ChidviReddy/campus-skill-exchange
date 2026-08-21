@@ -28,6 +28,8 @@ export interface Session {
   learnerName?: string;
   bookedAgain?: boolean;
   replacedBySessionId?: string;
+  isStarted?: boolean;
+  startedAt?: string;
 }
 
 export const sessions: Session[] = [

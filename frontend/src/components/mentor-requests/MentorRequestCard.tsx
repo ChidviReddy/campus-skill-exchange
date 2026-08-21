@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
+import { isSessionBeforeStart, formatStartTimeOnly } from "@/utils/sessionTime";
 
 type MentorRequestCardProps = {
   session: Session;
@@ -169,14 +170,26 @@ const MentorRequestCard = ({
 
           {session.status === "upcoming" && (
             <>
-              <button
-                type="button"
-                onClick={() => navigate(`/session-room/${session.id}`)}
-                className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-violet-700 hover:shadow-md"
-              >
-                <Video size={15} />
-                Join Session
-              </button>
+              {isSessionBeforeStart(session.date, session.time) ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/session-room/${session.id}`)}
+                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-violet-100 px-4 py-2.5 text-xs font-semibold text-violet-700 shadow-xs transition hover:bg-violet-200"
+                  title={`Session starts at ${formatStartTimeOnly(session.time)}`}
+                >
+                  <Video size={15} />
+                  Starts at {formatStartTimeOnly(session.time)}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/session-room/${session.id}`)}
+                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-violet-700 hover:shadow-md"
+                >
+                  <Video size={15} />
+                  Join Session
+                </button>
+              )}
 
               <button
                 type="button"
