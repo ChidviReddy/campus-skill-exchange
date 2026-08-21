@@ -31,14 +31,20 @@ const SkillsSection = ({ mentor = mentors[0] }: SkillsSectionProps) => {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          {mentor.teaches.map((skill) => (
-            <span
-              key={skill}
-              className="rounded-full bg-violet-100 px-4 py-2 text-sm font-medium text-violet-700"
-            >
-              {skill}
-            </span>
-          ))}
+          {mentor.teaches && mentor.teaches.length > 0 ? (
+            mentor.teaches.map((skill) => (
+              <span
+                key={skill}
+                className="rounded-full bg-violet-100 px-4 py-2 text-sm font-medium text-violet-700"
+              >
+                {skill}
+              </span>
+            ))
+          ) : (
+            <p className="text-sm italic text-slate-400">
+              No teaching skills listed yet.
+            </p>
+          )}
         </div>
       </div>
 
@@ -64,14 +70,20 @@ const SkillsSection = ({ mentor = mentors[0] }: SkillsSectionProps) => {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          {mentor.learns.map((skill) => (
-            <span
-              key={skill}
-              className="rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-700"
-            >
-              {skill}
-            </span>
-          ))}
+          {mentor.learns && mentor.learns.length > 0 ? (
+            mentor.learns.map((skill) => (
+              <span
+                key={skill}
+                className="rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-700"
+              >
+                {skill}
+              </span>
+            ))
+          ) : (
+            <p className="text-sm italic text-slate-400">
+              No learning skills listed yet.
+            </p>
+          )}
         </div>
       </div>
     </section>

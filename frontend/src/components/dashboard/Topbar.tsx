@@ -4,13 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWallet } from "@/hooks/useWallet";
 import { useSessions } from "@/hooks/useSessions";
-import { users } from "@/data/mentors";
 
 const Topbar = () => {
   const navigate = useNavigate();
   const { unreadCount } = useNotifications();
   const { balance } = useWallet();
-  const { currentUser, switchUserById } = useSessions();
+  const { currentUser, switchUserById, users } = useSessions();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const initials =

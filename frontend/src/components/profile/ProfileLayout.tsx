@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { getMentorById, mentors } from "@/data/mentors";
+import { useSessions } from "@/hooks/useSessions";
 import Sidebar from "../dashboard/Sidebar";
 import Topbar from "../dashboard/Topbar";
 import BackButton from "./BackButton";
@@ -11,7 +11,8 @@ import RequestSessionCard from "./RequestSessionCard";
 
 const ProfileLayout = () => {
   const { id } = useParams<{ id: string }>();
-  const mentor = getMentorById(id) || mentors[0];
+  const { getUserById, currentUser } = useSessions();
+  const mentor = (id && id !== "me" ? getUserById(id) : currentUser) || currentUser;
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-violet-50 via-white to-violet-100">
@@ -33,7 +34,7 @@ const ProfileLayout = () => {
 
             <SkillsSection mentor={mentor} />
 
-            <ReviewsSection />
+            <ReviewsSection user={mentor} />
           </div>
 
           {/* Right Section */}

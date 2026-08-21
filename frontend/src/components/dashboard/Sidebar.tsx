@@ -130,7 +130,17 @@ const Sidebar = () => {
 
       {/* User Info */}
       <div className="border-t border-violet-100 p-5">
-        <div className="flex items-center justify-between rounded-xl bg-violet-50/60 p-3">
+        <NavLink
+          to={`/profile/${currentUser.id}`}
+          className={({ isActive }) =>
+            `flex items-center justify-between rounded-xl p-3 transition ${
+              isActive
+                ? "bg-violet-100/80 ring-1 ring-violet-300"
+                : "bg-violet-50/60 hover:bg-violet-100/60"
+            }`
+          }
+          title="View your public profile"
+        >
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 font-semibold text-white">
               {initials}
@@ -145,7 +155,7 @@ const Sidebar = () => {
               </p>
             </div>
           </div>
-        </div>
+        </NavLink>
       </div>
     </aside>
   );

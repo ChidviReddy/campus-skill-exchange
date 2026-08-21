@@ -1,10 +1,11 @@
-import { mentors } from "@/data/mentors";
 import { useSessions } from "@/hooks/useSessions";
 import UserCard from "./UserCard";
 
 const UserGrid = () => {
-  const { currentUser } = useSessions();
-  const visibleMentors = mentors.filter((user) => user.id !== currentUser.id);
+  const { users, currentUser } = useSessions();
+  const visibleMentors = users.filter(
+    (user) => user.id !== currentUser.id && user.teaches && user.teaches.length > 0
+  );
 
   return (
     <section className="mt-8">

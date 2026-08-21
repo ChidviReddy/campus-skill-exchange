@@ -50,6 +50,7 @@ export default function AppRoutes() {
 
         <Route path="/explore" element={<Explore />} />
 
+        <Route path="/profile" element={<UserProfile />} />
         <Route path="/profile/:id" element={<UserProfile />} />
 
         <Route path="/request-session/:id" element={<RequestSession />} />

@@ -16,6 +16,8 @@ export interface User {
   experienceYears: string;
   projectsBuilt: string;
   languages: string;
+  email?: string;
+  location?: string;
 }
 
 export type Mentor = User;

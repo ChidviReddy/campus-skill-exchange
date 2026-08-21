@@ -1,16 +1,19 @@
-import { Coins, GraduationCap, Star, Users, MessageSquare } from "lucide-react";
+import { Coins, GraduationCap, Star, Users, MessageSquare, Edit3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useChat } from "@/hooks/useChat";
-import { mentors } from "@/data/mentors";
-import type { Mentor } from "@/data/mentors";
+import { useSessions } from "@/hooks/useSessions";
+import type { User } from "@/data/mentors";
 
 type ProfileHeaderProps = {
-  mentor?: Mentor;
+  mentor: User;
 };
 
-const ProfileHeader = ({ mentor = mentors[0] }: ProfileHeaderProps) => {
+const ProfileHeader = ({ mentor }: ProfileHeaderProps) => {
   const navigate = useNavigate();
   const { getOrCreateConversationForMentor } = useChat();
+  const { currentUser, getUserRating } = useSessions();
+  const isOwnProfile = currentUser.id === mentor.id;
+  const ratingData = getUserRating(mentor.id);
 
   const initials =
     mentor.avatar ||
@@ -41,9 +44,16 @@ const ProfileHeader = ({ mentor = mentors[0] }: ProfileHeaderProps) => {
         <div className="flex-1">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">
-                {mentor.name}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-slate-900">
+                  {mentor.name}
+                </h1>
+                {isOwnProfile && (
+                  <span className="rounded-full bg-violet-100 px-3 py-0.5 text-xs font-semibold text-violet-700">
+                    Your Profile
+                  </span>
+                )}
+              </div>
 
               <p className="mt-2 flex items-center gap-2 text-slate-600">
                 <GraduationCap size={18} />
@@ -56,14 +66,25 @@ const ProfileHeader = ({ mentor = mentors[0] }: ProfileHeaderProps) => {
                 Available Today
               </span>
 
-              <button
-                type="button"
-                onClick={handleMessage}
-                className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-xs transition hover:bg-violet-50"
-              >
-                <MessageSquare size={16} />
-                Message
-              </button>
+              {isOwnProfile ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/settings")}
+                  className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-xs transition hover:bg-violet-50"
+                >
+                  <Edit3 size={16} />
+                  Edit Profile
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleMessage}
+                  className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-xs transition hover:bg-violet-50"
+                >
+                  <MessageSquare size={16} />
+                  Message
+                </button>
+              )}
             </div>
           </div>
 
@@ -76,7 +97,10 @@ const ProfileHeader = ({ mentor = mentors[0] }: ProfileHeaderProps) => {
               </div>
 
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                {mentor.rating}
+                {ratingData.rating}{" "}
+                <span className="text-xs font-normal text-slate-500">
+                  ({ratingData.reviewCount} {ratingData.reviewCount === 1 ? "review" : "reviews"})
+                </span>
               </p>
             </div>
 

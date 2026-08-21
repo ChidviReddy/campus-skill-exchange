@@ -5,7 +5,7 @@ import type { Session } from "@/data/sessions";
 import { useWallet } from "@/hooks/useWallet";
 
 import { useNotifications } from "@/hooks/useNotifications";
-import { users, getUserById } from "@/data/mentors";
+import { users as initialUsers } from "@/data/mentors";
 import type { User } from "@/data/mentors";
 
 import { isSessionBeforeStart } from "@/utils/sessionTime";
@@ -25,9 +25,18 @@ export interface SessionReview {
 export interface SessionContextType {
   sessions: Session[];
   reviews: SessionReview[];
+  users: User[];
   currentUser: User;
   setCurrentUser: (user: User) => void;
   switchUserById: (id: string) => void;
+  getUserById: (id: string | undefined) => User | undefined;
+  updateUserProfile: (userId: string, updates: Partial<User>) => void;
+  addTeachingSkill: (userId: string, skill: string) => boolean;
+  removeTeachingSkill: (userId: string, skill: string) => boolean;
+  addLearningSkill: (userId: string, skill: string) => boolean;
+  removeLearningSkill: (userId: string, skill: string) => boolean;
+  getUserReviews: (userId: string | undefined) => SessionReview[];
+  getUserRating: (userId: string | undefined) => { rating: number; reviewCount: number };
   incomingRequests: Session[];
   outgoingRequests: Session[];
   currentUserRole: "mentor" | "learner";
@@ -55,19 +64,235 @@ export const SessionContext = createContext<SessionContextType | undefined>(
   undefined
 );
 
+const initialReviews: SessionReview[] = [
+  {
+    sessionId: "seed-r1",
+    reviewerId: "2",
+    revieweeId: "1",
+    mentor: "Priya Sharma",
+    topic: "React Basics",
+    rating: 5,
+    reviewText:
+      "Priya explained every concept clearly with practical examples. The session was interactive and really helped me understand React fundamentals.",
+    comment:
+      "Priya explained every concept clearly with practical examples. The session was interactive and really helped me understand React fundamentals.",
+    submittedAt: "2 weeks ago",
+  },
+  {
+    sessionId: "seed-r2",
+    reviewerId: "5",
+    revieweeId: "1",
+    mentor: "Priya Sharma",
+    topic: "TypeScript",
+    rating: 5,
+    reviewText:
+      "Excellent mentor! She answered every doubt patiently and provided useful resources after the session.",
+    comment:
+      "Excellent mentor! She answered every doubt patiently and provided useful resources after the session.",
+    submittedAt: "1 month ago",
+  },
+  {
+    sessionId: "seed-r3",
+    reviewerId: "6",
+    revieweeId: "1",
+    mentor: "Priya Sharma",
+    topic: "Next.js",
+    rating: 4,
+    reviewText:
+      "Very knowledgeable and friendly. The projects discussed during the session were extremely helpful.",
+    comment:
+      "Very knowledgeable and friendly. The projects discussed during the session were extremely helpful.",
+    submittedAt: "2 months ago",
+  },
+  {
+    sessionId: "seed-r4",
+    reviewerId: "1",
+    revieweeId: "2",
+    mentor: "Rahul Verma",
+    topic: "Machine Learning & Python",
+    rating: 5,
+    reviewText:
+      "Rahul gave an awesome walkthrough of ML algorithms and data preprocessing techniques in Python.",
+    comment:
+      "Rahul gave an awesome walkthrough of ML algorithms and data preprocessing techniques in Python.",
+    submittedAt: "3 weeks ago",
+  },
+];
+
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
-  const [reviews, setReviews] = useState<SessionReview[]>([]);
-  const [currentUser, setCurrentUser] = useState<User>(users[0]);
+  const [reviews, setReviews] = useState<SessionReview[]>(initialReviews);
+  const [usersState, setUsersState] = useState<User[]>(initialUsers);
+  const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
   const [currentUserRole, setCurrentUserRole] = useState<"mentor" | "learner">("mentor");
   const { completeSessionAndProcessCredits } = useWallet();
   const { addNotification } = useNotifications();
+
+  const getUserById = (id: string | undefined): User | undefined => {
+    if (!id) return undefined;
+    return usersState.find((u) => u.id === String(id));
+  };
 
   const switchUserById = (id: string) => {
     const found = getUserById(id);
     if (found) {
       setCurrentUser(found);
     }
+  };
+
+  const updateUserProfile = (userId: string, updates: Partial<User>) => {
+    setUsersState((prev) =>
+      prev.map((user) => {
+        if (user.id === userId) {
+          const updatedUser = { ...user, ...updates };
+          if (currentUser.id === userId) {
+            setCurrentUser(updatedUser);
+          }
+          return updatedUser;
+        }
+        return user;
+      })
+    );
+  };
+
+  const addTeachingSkill = (userId: string, skill: string): boolean => {
+    const trimmed = skill.trim();
+    if (!trimmed) return false;
+
+    let success = false;
+    setUsersState((prev) =>
+      prev.map((user) => {
+        if (user.id === userId) {
+          const exists = user.teaches.some(
+            (s) => s.toLowerCase() === trimmed.toLowerCase()
+          );
+          if (exists) return user; // Prevent duplicate
+
+          success = true;
+          const updatedTeaches = [...user.teaches, trimmed];
+          const updatedTeachingSkill = user.teachingSkill || trimmed;
+          const updatedUser = {
+            ...user,
+            teaches: updatedTeaches,
+            teachingSkill: updatedTeachingSkill,
+          };
+          if (currentUser.id === userId) {
+            setCurrentUser(updatedUser);
+          }
+          return updatedUser;
+        }
+        return user;
+      })
+    );
+    return success;
+  };
+
+  const removeTeachingSkill = (userId: string, skill: string): boolean => {
+    let success = false;
+    setUsersState((prev) =>
+      prev.map((user) => {
+        if (user.id === userId) {
+          success = true;
+          const updatedTeaches = user.teaches.filter(
+            (s) => s.toLowerCase() !== skill.toLowerCase()
+          );
+          const updatedTeachingSkill =
+            updatedTeaches.length > 0 ? updatedTeaches[0] : "";
+          const updatedUser = {
+            ...user,
+            teaches: updatedTeaches,
+            teachingSkill: updatedTeachingSkill,
+          };
+          if (currentUser.id === userId) {
+            setCurrentUser(updatedUser);
+          }
+          return updatedUser;
+        }
+        return user;
+      })
+    );
+    return success;
+  };
+
+  const addLearningSkill = (userId: string, skill: string): boolean => {
+    const trimmed = skill.trim();
+    if (!trimmed) return false;
+
+    let success = false;
+    setUsersState((prev) =>
+      prev.map((user) => {
+        if (user.id === userId) {
+          const exists = user.learns.some(
+            (s) => s.toLowerCase() === trimmed.toLowerCase()
+          );
+          if (exists) return user;
+
+          success = true;
+          const updatedLearns = [...user.learns, trimmed];
+          const updatedUser = {
+            ...user,
+            learns: updatedLearns,
+          };
+          if (currentUser.id === userId) {
+            setCurrentUser(updatedUser);
+          }
+          return updatedUser;
+        }
+        return user;
+      })
+    );
+    return success;
+  };
+
+  const removeLearningSkill = (userId: string, skill: string): boolean => {
+    let success = false;
+    setUsersState((prev) =>
+      prev.map((user) => {
+        if (user.id === userId) {
+          success = true;
+          const updatedLearns = user.learns.filter(
+            (s) => s.toLowerCase() !== skill.toLowerCase()
+          );
+          const updatedUser = {
+            ...user,
+            learns: updatedLearns,
+          };
+          if (currentUser.id === userId) {
+            setCurrentUser(updatedUser);
+          }
+          return updatedUser;
+        }
+        return user;
+      })
+    );
+    return success;
+  };
+
+  const getUserReviews = (userId: string | undefined): SessionReview[] => {
+    if (!userId) return [];
+    return reviews.filter((r) => r.revieweeId === String(userId));
+  };
+
+  const getUserRating = (
+    userId: string | undefined
+  ): { rating: number; reviewCount: number } => {
+    if (!userId) return { rating: 5.0, reviewCount: 0 };
+    const userReviews = getUserReviews(userId);
+    const user = getUserById(userId);
+
+    if (userReviews.length === 0) {
+      return {
+        rating: user?.rating || 5.0,
+        reviewCount: user?.reviewCount || 0,
+      };
+    }
+
+    const totalStars = userReviews.reduce((sum, r) => sum + r.rating, 0);
+    const avg = Number((totalStars / userReviews.length).toFixed(1));
+    return {
+      rating: avg,
+      reviewCount: userReviews.length,
+    };
   };
 
   const incomingRequests = sessions.filter(
@@ -403,9 +628,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       value={{
         sessions,
         reviews,
+        users: usersState,
         currentUser,
         setCurrentUser,
         switchUserById,
+        getUserById,
+        updateUserProfile,
+        addTeachingSkill,
+        removeTeachingSkill,
+        addLearningSkill,
+        removeLearningSkill,
+        getUserReviews,
+        getUserRating,
         incomingRequests,
         outgoingRequests,
         currentUserRole,
