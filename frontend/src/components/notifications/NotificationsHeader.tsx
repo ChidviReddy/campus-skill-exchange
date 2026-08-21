@@ -17,7 +17,7 @@ const NotificationsHeader = () => {
 
       <button
         type="button"
-        onClick={markAllAsRead}
+        onClick={() => markAllAsRead()}
         disabled={unreadCount === 0}
         className="cursor-pointer self-start text-base font-semibold text-violet-600 transition hover:text-violet-700 disabled:cursor-not-allowed disabled:text-slate-400 sm:self-center"
       >

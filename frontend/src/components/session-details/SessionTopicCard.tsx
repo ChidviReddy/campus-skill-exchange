@@ -1,11 +1,19 @@
 import { Target, BookOpen } from "lucide-react";
 import type { Session } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
 
 type SessionTopicCardProps = {
   session: Session;
 };
 
 const SessionTopicCard = ({ session }: SessionTopicCardProps) => {
+  const { currentUser } = useSessions();
+  const isLearner = currentUser.id === session.learnerId;
+
+  const goalHeading = isLearner
+    ? "Your Learning Goal"
+    : `${session.learnerName || "Learner"}'s Learning Goal`;
+
   return (
     <section className="rounded-2xl border border-violet-100 bg-white p-7 shadow-sm">
       {/* Session Topic */}
@@ -44,7 +52,7 @@ const SessionTopicCard = ({ session }: SessionTopicCardProps) => {
 
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Your Goal
+              {goalHeading}
             </p>
 
             <p className="mt-2 text-base leading-7 text-slate-700">

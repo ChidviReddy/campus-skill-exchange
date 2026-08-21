@@ -245,13 +245,13 @@ const SessionActions = ({ session }: SessionActionsProps) => {
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-[#211653]">
-              Session Completed
+              {isLearnerForThisSession ? "Session Completed" : "Session Completed Successfully"}
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
               {isLearnerForThisSession
-                ? "Review session notes or leave feedback for your mentor."
-                : "Your teaching session is completed and credits have been awarded."}
+                ? `Review session notes or leave feedback for ${session.mentor}.`
+                : `You successfully taught ${session.learnerName || "your student"}. Your teaching reward of +10 credits has been credited to your wallet.`}
             </p>
           </div>
 

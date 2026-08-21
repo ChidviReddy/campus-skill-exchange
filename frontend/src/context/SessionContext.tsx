@@ -107,6 +107,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       }
       return next;
     });
+
+    // Notify the mentor about the new incoming request
+    addNotification({
+      userId: newSession.mentorId,
+      type: "session",
+      title: "New session request",
+      message: `${newSession.learnerName || currentUser.name || "A student"} requested a ${newSession.topic} session with you.`,
+      timestamp: "Just now",
+      relatedId: newSession.id,
+      relatedRoute: "/mentor-requests",
+      group: "today",
+    });
   };
 
   const rescheduleSession = (
@@ -182,7 +194,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       })
     );
 
+    // Notify the learner that the request was accepted
     addNotification({
+      userId: targetSession.learnerId,
       type: "session",
       title: "Request Accepted",
       message: `${targetSession.mentor} accepted your ${targetSession.topic} session request.`,
@@ -214,7 +228,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       })
     );
 
+    // Notify the learner that the request was declined
     addNotification({
+      userId: targetSession.learnerId,
       type: "session",
       title: "Request Declined",
       message: `${targetSession.mentor} declined your ${targetSession.topic} session request.`,
@@ -309,6 +325,30 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       })
     );
 
+    // Notify learner about completion
+    addNotification({
+      userId: targetSession.learnerId,
+      type: "session",
+      title: "Session Completed",
+      message: `Your mentorship session on ${targetSession.topic} with ${targetSession.mentor} is completed. Feel free to leave a review!`,
+      timestamp: "Just now",
+      relatedId: targetSession.id,
+      relatedRoute: `/session-details/${targetSession.id}`,
+      group: "today",
+    });
+
+    // Notify mentor about teaching reward
+    addNotification({
+      userId: targetSession.mentorId,
+      type: "credit",
+      title: "Credits earned",
+      message: `You earned +10 credits for completing your mentoring session on ${targetSession.topic}.`,
+      timestamp: "Just now",
+      relatedId: "wallet",
+      relatedRoute: "/wallet",
+      group: "today",
+    });
+
     return { success: true };
   };
 
@@ -320,11 +360,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const targetSession = sessions.find((s) => s.id === review.sessionId);
-    if (!targetSession || targetSession.status !== "completed") {
+    if (!targetSession) {
       return false;
     }
 
-    // Strictly enforce that only the learner can review the mentor
+    // Role check: ONLY the learner of the session can submit a review
     if (currentUser.id !== targetSession.learnerId) {
       return false;
     }
@@ -333,15 +373,28 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       sessionId: review.sessionId,
       reviewerId: targetSession.learnerId,
       revieweeId: targetSession.mentorId,
-      mentor: targetSession.mentor,
-      topic: targetSession.topic,
+      mentor: review.mentor,
+      topic: review.topic,
       rating: review.rating,
       reviewText: review.reviewText,
-      comment: review.comment || review.reviewText,
+      comment: review.reviewText,
       submittedAt: new Date().toISOString(),
     };
 
-    setReviews((prev) => [...prev, newReview]);
+    setReviews((prev) => [newReview, ...prev]);
+
+    // Notify mentor about the review
+    addNotification({
+      userId: targetSession.mentorId,
+      type: "review",
+      title: "Review submitted",
+      message: `${currentUser.name} left you a ${review.rating}-star review for peer mentoring.`,
+      timestamp: "Just now",
+      relatedId: targetSession.id,
+      relatedRoute: `/session-details/${targetSession.id}`,
+      group: "today",
+    });
+
     return true;
   };
 

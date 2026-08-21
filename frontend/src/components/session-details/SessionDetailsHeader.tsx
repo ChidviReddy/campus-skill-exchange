@@ -2,44 +2,66 @@ import { ArrowLeft, Clock3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
 
+import { useSessions } from "@/hooks/useSessions";
+
 type SessionDetailsHeaderProps = {
   session: Session;
 };
 
-const statusStyles: Record<
+const statusBadgeStyles: Record<
   "upcoming" | "pending" | "completed" | "cancelled" | "rejected",
-  { badge: string; text: string; description: string }
+  { badge: string; text: string }
 > = {
   upcoming: {
     badge: "bg-green-100 text-green-700",
     text: "Upcoming",
-    description: "Your upcoming mentorship session with",
   },
   pending: {
     badge: "bg-amber-100 text-amber-700",
     text: "Pending",
-    description: "Your pending mentorship session request with",
   },
   completed: {
     badge: "bg-blue-100 text-blue-700",
     text: "Completed",
-    description: "Your completed mentorship session with",
   },
   cancelled: {
     badge: "bg-red-100 text-red-700",
     text: "Cancelled",
-    description: "Your cancelled mentorship session with",
   },
   rejected: {
     badge: "bg-red-100 text-red-700",
     text: "Declined",
-    description: "Your declined mentorship session request with",
   },
 };
 
 const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
   const navigate = useNavigate();
-  const currentStatus = statusStyles[session.status];
+  const { currentUser } = useSessions();
+  const isLearner = currentUser.id === session.learnerId;
+  const currentStatus = statusBadgeStyles[session.status];
+
+  let descriptionText = "";
+  if (session.status === "completed") {
+    descriptionText = isLearner
+      ? `You learned ${session.topic} from ${session.mentor}.`
+      : `You taught ${session.topic} to ${session.learnerName || "Learner"}.`;
+  } else if (session.status === "upcoming") {
+    descriptionText = isLearner
+      ? `Your upcoming mentorship session with ${session.mentor}.`
+      : `Your upcoming teaching session with ${session.learnerName || "Learner"}.`;
+  } else if (session.status === "pending") {
+    descriptionText = isLearner
+      ? `Your pending mentorship session request with ${session.mentor}.`
+      : `Incoming mentorship session request from ${session.learnerName || "Learner"}.`;
+  } else if (session.status === "cancelled") {
+    descriptionText = isLearner
+      ? `Your cancelled mentorship session with ${session.mentor}.`
+      : `Cancelled teaching session with ${session.learnerName || "Learner"}.`;
+  } else {
+    descriptionText = isLearner
+      ? `Your declined mentorship session request with ${session.mentor}.`
+      : `Declined mentorship request from ${session.learnerName || "Learner"}.`;
+  }
 
   return (
     <section>
@@ -67,7 +89,7 @@ const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
           </div>
 
           <p className="mt-2 text-base text-slate-500">
-            {currentStatus.description} {session.mentor}.
+            {descriptionText}
           </p>
         </div>
 

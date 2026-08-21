@@ -1,4 +1,4 @@
-import { createContext, useState, useMemo } from "react";
+import { createContext, useState } from "react";
 import type { ReactNode } from "react";
 import { initialNotifications } from "@/data/notifications";
 import type {
@@ -8,14 +8,22 @@ import type {
 
 export interface NotificationContextType {
   notifications: Notification[];
-  unreadCount: number;
   activeFilter: NotificationFilter;
   setActiveFilter: (filter: NotificationFilter) => void;
-  filteredNotifications: Notification[];
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
+  getUserNotifications: (userId: string | undefined) => Notification[];
+  getUserUnreadCount: (userId: string | undefined) => number;
+  getFilteredUserNotifications: (
+    userId: string | undefined,
+    filter: NotificationFilter
+  ) => Notification[];
+  markAsRead: (id: string, userId?: string) => void;
+  markAllAsRead: (userId: string | undefined) => void;
   addNotification: (
-    notification: Omit<Notification, "id" | "isRead"> & { id?: string; isRead?: boolean }
+    notification: Omit<Notification, "id" | "isRead"> & {
+      id?: string;
+      isRead?: boolean;
+      userId?: string;
+    }
   ) => void;
 }
 
@@ -33,28 +41,64 @@ export const NotificationProvider = ({
   const [activeFilter, setActiveFilter] =
     useState<NotificationFilter>("all");
 
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.isRead).length,
-    [notifications]
-  );
+  const getUserNotifications = (userId: string | undefined): Notification[] => {
+    if (!userId) return [];
+    return notifications.filter((n) => n.userId === String(userId));
+  };
 
-  const markAsRead = (id: string) => {
+  const getUserUnreadCount = (userId: string | undefined): number => {
+    if (!userId) return 0;
+    return notifications.filter((n) => n.userId === String(userId) && !n.isRead)
+      .length;
+  };
+
+  const getFilteredUserNotifications = (
+    userId: string | undefined,
+    filter: NotificationFilter
+  ): Notification[] => {
+    const userNotifs = getUserNotifications(userId);
+    if (filter === "all") return userNotifs;
+    if (filter === "unread") return userNotifs.filter((n) => !n.isRead);
+    if (filter === "session") return userNotifs.filter((n) => n.type === "session");
+    if (filter === "message") return userNotifs.filter((n) => n.type === "message");
+    if (filter === "review") return userNotifs.filter((n) => n.type === "review");
+    if (filter === "credit") return userNotifs.filter((n) => n.type === "credit");
+    if (filter === "system") return userNotifs.filter((n) => n.type === "system");
+    return userNotifs;
+  };
+
+  const markAsRead = (id: string, userId?: string) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      prev.map((n) => {
+        if (n.id === id) {
+          if (!userId || n.userId === String(userId)) {
+            return { ...n, isRead: true };
+          }
+        }
+        return n;
+      })
     );
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = (userId: string | undefined) => {
+    if (!userId) return;
     setNotifications((prev) =>
-      prev.map((n) => ({ ...n, isRead: true }))
+      prev.map((n) => (n.userId === String(userId) ? { ...n, isRead: true } : n))
     );
   };
 
   const addNotification = (
-    notif: Omit<Notification, "id" | "isRead"> & { id?: string; isRead?: boolean }
+    notif: Omit<Notification, "id" | "isRead"> & {
+      id?: string;
+      isRead?: boolean;
+      userId?: string;
+    }
   ) => {
     const newNotif: Notification = {
-      id: notif.id || `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id:
+        notif.id ||
+        `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      userId: notif.userId || "chidvi",
       type: notif.type,
       title: notif.title,
       message: notif.message,
@@ -67,31 +111,15 @@ export const NotificationProvider = ({
     setNotifications((prev) => [newNotif, ...prev]);
   };
 
-  const filteredNotifications = useMemo(() => {
-    if (activeFilter === "all") return notifications;
-    if (activeFilter === "unread")
-      return notifications.filter((n) => !n.isRead);
-    if (activeFilter === "session")
-      return notifications.filter((n) => n.type === "session");
-    if (activeFilter === "message")
-      return notifications.filter((n) => n.type === "message");
-    if (activeFilter === "review")
-      return notifications.filter((n) => n.type === "review");
-    if (activeFilter === "credit")
-      return notifications.filter((n) => n.type === "credit");
-    if (activeFilter === "system")
-      return notifications.filter((n) => n.type === "system");
-    return notifications;
-  }, [notifications, activeFilter]);
-
   return (
     <NotificationContext.Provider
       value={{
         notifications,
-        unreadCount,
         activeFilter,
         setActiveFilter,
-        filteredNotifications,
+        getUserNotifications,
+        getUserUnreadCount,
+        getFilteredUserNotifications,
         markAsRead,
         markAllAsRead,
         addNotification,

@@ -60,8 +60,17 @@ const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
                   </div>
 
                   <p className="mt-2 text-base text-slate-500">
-                    Comprehensive takeaways and notes from your mentorship session with{" "}
-                    <span className="font-semibold text-slate-700">{session.mentor}</span>.
+                    {isLearner ? (
+                      <>
+                        Comprehensive takeaways and notes from your mentorship session with{" "}
+                        <span className="font-semibold text-slate-700">{session.mentor}</span>.
+                      </>
+                    ) : (
+                      <>
+                        Comprehensive takeaways and notes from the mentorship session you taught to{" "}
+                        <span className="font-semibold text-slate-700">{session.learnerName || "your student"}</span>.
+                      </>
+                    )}
                   </p>
                 </div>
 
@@ -154,7 +163,7 @@ const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
 
             {/* Mentor Feedback & Recommended Resources Grid */}
             <div className="grid gap-7 lg:grid-cols-2">
-              {/* Mentor Feedback */}
+              {/* Feedback Section */}
               <section className="rounded-3xl border border-violet-100 bg-white p-8 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
@@ -162,10 +171,12 @@ const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">
-                      Mentor Feedback
+                      {isLearner ? "Mentor Feedback" : "Your Feedback to Student"}
                     </h2>
                     <p className="text-xs text-slate-500">
-                      Insights from {session.mentor}
+                      {isLearner
+                        ? `Insights and guidance from ${session.mentor}`
+                        : `Feedback shared with ${session.learnerName || "your student"}`}
                     </p>
                   </div>
                 </div>
@@ -175,7 +186,7 @@ const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
                     "{notes.mentorFeedback}"
                   </p>
                   <p className="mt-3 text-xs font-semibold text-slate-600">
-                    — {session.mentor}, {session.mentorRole}
+                    — {isLearner ? `${session.mentor}, ${session.mentorRole}` : "You (Mentor)"}
                   </p>
                 </div>
               </section>
