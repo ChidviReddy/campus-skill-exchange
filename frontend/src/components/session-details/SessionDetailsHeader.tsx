@@ -1,8 +1,8 @@
 import { ArrowLeft, Clock3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
-
 import { useSessions } from "@/hooks/useSessions";
+import { isSessionExpired, isInitialRequestExpired } from "@/utils/sessionTime";
 
 type SessionDetailsHeaderProps = {
   session: Session;
@@ -39,6 +39,8 @@ const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
   const { currentUser } = useSessions();
   const isLearner = currentUser.id === session.learnerId;
   const currentStatus = statusBadgeStyles[session.status];
+  const isExpired = isSessionExpired(session);
+  const isInitialExpired = isInitialRequestExpired(session);
 
   let descriptionText = "";
   if (session.status === "completed") {
@@ -50,13 +52,21 @@ const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
       ? `Live mentorship session on ${session.topic} with ${session.mentor} is in progress.`
       : `Live teaching session on ${session.topic} with ${session.learnerName || "Learner"} is in progress.`;
   } else if (session.status === "upcoming") {
-    descriptionText = isLearner
-      ? `Your upcoming mentorship session with ${session.mentor}.`
-      : `Your upcoming teaching session with ${session.learnerName || "Learner"}.`;
+    if (isExpired) {
+      descriptionText = `This session expired because it was not started during its scheduled time window.`;
+    } else {
+      descriptionText = isLearner
+        ? `Your upcoming mentorship session with ${session.mentor}.`
+        : `Your upcoming teaching session with ${session.learnerName || "Learner"}.`;
+    }
   } else if (session.status === "pending") {
-    descriptionText = isLearner
-      ? `Your pending mentorship session request with ${session.mentor}.`
-      : `Incoming mentorship session request from ${session.learnerName || "Learner"}.`;
+    if (isInitialExpired) {
+      descriptionText = `This session request has expired because its requested start time has passed.`;
+    } else {
+      descriptionText = isLearner
+        ? `Your pending mentorship session request with ${session.mentor}.`
+        : `Incoming mentorship session request from ${session.learnerName || "Learner"}.`;
+    }
   } else if (session.status === "cancelled") {
     descriptionText = isLearner
       ? `Your cancelled mentorship session with ${session.mentor}.`
@@ -91,6 +101,10 @@ const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3.5 py-1 text-xs font-bold text-emerald-800">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
                 In Progress
+              </span>
+            ) : isExpired || isInitialExpired ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                Expired
               </span>
             ) : (
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${currentStatus.badge}`}>

@@ -12,6 +12,7 @@ import { NavLink } from "react-router-dom";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useSessions } from "@/hooks/useSessions";
 import { useChat } from "@/hooks/useChat";
+import { isInitialRequestExpired } from "@/utils/sessionTime";
 
 const menuItems = [
   {
@@ -31,7 +32,7 @@ const menuItems = [
   },
   {
     icon: Inbox,
-    label: "Incoming Requests",
+    label: "Session Requests",
     path: "/mentor-requests",
   },
   {
@@ -62,7 +63,10 @@ const Sidebar = () => {
   const { sessions, currentUser } = useSessions();
 
   const pendingRequestsCount = sessions.filter(
-    (s) => s.mentorId === currentUser.id && s.status === "pending" && !s.bookedAgain
+    (s) =>
+      s.mentorId === currentUser.id &&
+      s.status === "pending" &&
+      !isInitialRequestExpired(s)
   ).length;
 
   const initials =

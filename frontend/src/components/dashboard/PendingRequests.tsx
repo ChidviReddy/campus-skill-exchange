@@ -6,6 +6,8 @@ import type { Session } from "@/data/sessions";
 import AcceptRequestModal from "../mentor-requests/AcceptRequestModal";
 import RejectRequestModal from "../mentor-requests/RejectRequestModal";
 
+import { isInitialRequestExpired } from "@/utils/sessionTime";
+
 const PendingRequests = () => {
   const { sessions, acceptRequest, rejectRequest, currentUser } = useSessions();
   const [acceptingSession, setAcceptingSession] = useState<Session | null>(null);
@@ -17,7 +19,7 @@ const PendingRequests = () => {
         (s) =>
           s.mentorId === currentUser.id &&
           s.status === "pending" &&
-          !s.bookedAgain
+          !isInitialRequestExpired(s)
       ),
     [sessions, currentUser.id]
   );

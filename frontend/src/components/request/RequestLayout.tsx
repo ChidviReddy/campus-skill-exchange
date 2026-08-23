@@ -20,7 +20,6 @@ import type { Mentor } from "@/data/mentors";
 type RequestLayoutProps = {
   mentor?: Mentor;
   sourceSession?: Session;
-  isBookAgain?: boolean;
 };
 
 // Helper: parse date to YYYY-MM-DD
@@ -119,7 +118,6 @@ const generateUniqueSessionId = (existingSessions: Session[]): string => {
 const RequestLayout = ({
   mentor,
   sourceSession,
-  isBookAgain = false,
 }: RequestLayoutProps) => {
   const navigate = useNavigate();
   const { sessions, addSession, currentUser, getUserById } = useSessions();
@@ -215,8 +213,7 @@ const RequestLayout = ({
         date,
         time,
         duration,
-        sessions,
-        isBookAgain ? sourceSession?.id : undefined
+        sessions
       );
 
       if (!scheduleValidation.valid) {
@@ -264,7 +261,7 @@ const RequestLayout = ({
       role: "learner",
     };
 
-    addSession(newSession, isBookAgain ? sourceSession?.id : undefined);
+    addSession(newSession);
 
     navigate("/request-success", {
       state: { session: newSession },
@@ -282,7 +279,6 @@ const RequestLayout = ({
           <div className="space-y-8">
             <SessionInfo
               mentorName={effectiveMentorName}
-              isBookAgain={isBookAgain}
             />
 
             <TopicInput
@@ -320,7 +316,6 @@ const RequestLayout = ({
               onDurationChange={(val) => setDuration(val)}
               dateError={dateError}
               timeError={timeError}
-              ignoreSessionId={isBookAgain ? sourceSession?.id : undefined}
             />
           </div>
 

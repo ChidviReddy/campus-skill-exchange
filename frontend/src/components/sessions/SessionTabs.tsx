@@ -1,5 +1,6 @@
 import type { SessionFilter } from "@/data/sessions";
 import { useSessions } from "@/hooks/useSessions";
+import { isSessionExpired, isInitialRequestExpired } from "@/utils/sessionTime";
 
 type SessionTabsProps = {
   activeFilter: SessionFilter;
@@ -11,17 +12,28 @@ const SessionTabs = ({ activeFilter, onFilterChange }: SessionTabsProps) => {
 
   // Dynamic calculations based strictly on currentUser.id
   const userSessions = sessions.filter((s) => {
-    if (s.bookedAgain) return false;
     if (s.status === "pending") return s.learnerId === currentUser.id;
     return s.learnerId === currentUser.id || s.mentorId === currentUser.id;
   });
 
+  const completedCount = userSessions.filter((s) => s.status === "completed").length;
+
   const counts: Record<SessionFilter, number> = {
     all: userSessions.length,
-    upcoming: userSessions.filter((s) => s.status === "upcoming" || s.isStarted).length,
-    pending: userSessions.filter((s) => s.status === "pending").length,
-    completed: userSessions.filter((s) => s.status === "completed").length,
-    cancelled: userSessions.filter((s) => s.status === "cancelled" || s.status === "rejected").length,
+    upcoming: userSessions.filter(
+      (s) => (s.status === "upcoming" && !isSessionExpired(s)) || s.isStarted
+    ).length,
+    pending: userSessions.filter(
+      (s) => s.status === "pending" && !isInitialRequestExpired(s)
+    ).length,
+    completed: Math.min(completedCount, 10),
+    cancelled: userSessions.filter(
+      (s) =>
+        s.status === "cancelled" ||
+        s.status === "rejected" ||
+        isSessionExpired(s) ||
+        (s.status === "pending" && isInitialRequestExpired(s))
+    ).length,
     rejected: userSessions.filter((s) => s.status === "rejected").length,
   };
 

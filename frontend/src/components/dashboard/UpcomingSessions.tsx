@@ -1,6 +1,7 @@
 import { CalendarDays, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
+import { isSessionExpired } from "@/utils/sessionTime";
 
 const UpcomingSessions = () => {
   const navigate = useNavigate();
@@ -9,8 +10,7 @@ const UpcomingSessions = () => {
   const upcomingList = sessions.filter(
     (s) =>
       (s.learnerId === currentUser.id || s.mentorId === currentUser.id) &&
-      s.status === "upcoming" &&
-      !s.bookedAgain
+      ((s.status === "upcoming" && !isSessionExpired(s)) || s.isStarted)
   );
 
   return (

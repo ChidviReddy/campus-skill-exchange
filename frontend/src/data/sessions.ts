@@ -26,10 +26,27 @@ export interface Session {
   status: "upcoming" | "pending" | "completed" | "cancelled" | "rejected";
   role?: "mentor" | "learner";
   learnerName?: string;
-  bookedAgain?: boolean;
-  replacedBySessionId?: string;
   isStarted?: boolean;
   startedAt?: string;
+}
+
+export interface RescheduleRequest {
+  id: string;
+  sessionId: string;
+  requestedById: string;
+  requestedForId: string;
+  mentorId: string;
+  learnerId: string;
+  topic: string;
+  currentDate: string;
+  currentTime: string;
+  proposedDate: string;
+  proposedTime: string;
+  duration: string;
+  status: "pending" | "accepted" | "rejected" | "cancelled" | "expired";
+  createdAt: string;
+  respondedAt?: string;
+  reason?: string;
 }
 
 export const sessions: Session[] = [

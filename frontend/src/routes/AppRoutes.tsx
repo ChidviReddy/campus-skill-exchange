@@ -9,7 +9,6 @@ import Dashboard from "@/pages/Dashboard";
 import Explore from "@/pages/Explore";
 import UserProfile from "@/pages/UserProfile";
 import RequestSession from "@/pages/RequestSession";
-import BookAgain from "@/pages/BookAgain";
 import RequestSuccess from "@/pages/RequestSuccess";
 import MySessions from "@/pages/MySessions";
 import Notifications from "@/pages/Notifications";
@@ -54,8 +53,6 @@ export default function AppRoutes() {
         <Route path="/profile/:id" element={<UserProfile />} />
 
         <Route path="/request-session/:id" element={<RequestSession />} />
-
-        <Route path="/book-again/:id" element={<BookAgain />} />
 
         <Route
           path="/request-success"

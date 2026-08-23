@@ -198,6 +198,16 @@ export const checkSessionAccess = (
     };
   }
 
+  // 3b. Expired check: unstarted upcoming session whose end time has passed
+  if (isSessionExpired(session, now)) {
+    return {
+      allowed: false,
+      status: "NOT_UPCOMING",
+      title: "Session Expired",
+      message: "This session's scheduled time window has passed without being started.",
+    };
+  }
+
   // 4. In-progress check: if mentor already started session, allow access
   if (session.isStarted) {
     return {
@@ -221,6 +231,45 @@ export const checkSessionAccess = (
     allowed: true,
     status: "ALLOWED",
   };
+};
+
+/**
+ * Returns true if an unstarted upcoming session's scheduled end time has completely passed.
+ */
+export const isSessionExpired = (
+  session: Session | undefined,
+  now = new Date()
+): boolean => {
+  if (!session || session.status !== "upcoming" || session.isStarted) return false;
+  const end = getSessionEndDateTime(session.date, session.time, session.duration);
+  if (!end) return false;
+  return now.getTime() > end.getTime();
+};
+
+/**
+ * Returns true if a pending initial session request's scheduled start datetime has passed.
+ */
+export const isInitialRequestExpired = (
+  session: Session | undefined,
+  now = new Date()
+): boolean => {
+  if (!session || session.status !== "pending") return false;
+  const start = getSessionStartDateTime(session.date, session.time);
+  if (!start) return false;
+  return now.getTime() >= start.getTime();
+};
+
+/**
+ * Returns true if a pending reschedule request's proposed start datetime has passed.
+ */
+export const isRescheduleRequestExpired = (
+  req: import("@/data/sessions").RescheduleRequest | undefined,
+  now = new Date()
+): boolean => {
+  if (!req || req.status !== "pending") return false;
+  const start = getSessionStartDateTime(req.proposedDate, req.proposedTime);
+  if (!start) return false;
+  return now.getTime() >= start.getTime();
 };
 
 /**
@@ -363,8 +412,7 @@ export const checkSlotConflict = (
     (s) =>
       s.mentorId === mentorId &&
       (s.status === "pending" || s.status === "upcoming") &&
-      s.id !== ignoreSessionId &&
-      !s.bookedAgain
+      s.id !== ignoreSessionId
   );
 
   for (const existing of activeSessions) {

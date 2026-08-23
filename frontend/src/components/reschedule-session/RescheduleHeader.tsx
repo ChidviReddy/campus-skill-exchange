@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
 
 type RescheduleHeaderProps = {
   session: Session;
@@ -8,6 +9,12 @@ type RescheduleHeaderProps = {
 
 const RescheduleHeader = ({ session }: RescheduleHeaderProps) => {
   const navigate = useNavigate();
+  const { currentUser } = useSessions();
+
+  const isMentor = currentUser.id === session.mentorId;
+  const otherPartyName = isMentor
+    ? session.learnerName || "Student"
+    : session.mentor;
 
   return (
     <section>
@@ -27,8 +34,8 @@ const RescheduleHeader = ({ session }: RescheduleHeaderProps) => {
           Reschedule Session
         </h1>
         <p className="mt-2 text-base text-slate-500">
-          Pick a new date and time for your mentorship session with{" "}
-          <span className="font-medium text-slate-700">{session.mentor}</span>.
+          Propose a new date and time for your session with{" "}
+          <span className="font-semibold text-slate-700">{otherPartyName}</span>.
         </p>
       </div>
     </section>

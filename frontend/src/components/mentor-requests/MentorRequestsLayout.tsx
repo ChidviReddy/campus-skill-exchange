@@ -3,6 +3,7 @@ import { Inbox, CheckCircle2, Calendar, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
 import type { Session } from "@/data/sessions";
+import { isInitialRequestExpired, isSessionExpired } from "@/utils/sessionTime";
 
 import Sidebar from "../dashboard/Sidebar";
 import Topbar from "../dashboard/Topbar";
@@ -18,11 +19,23 @@ const MentorRequestsLayout = () => {
   const [acceptingSession, setAcceptingSession] = useState<Session | null>(null);
   const [rejectingSession, setRejectingSession] = useState<Session | null>(null);
 
-  // Incoming requests sent to the current logged-in user
+  // Incoming active pending requests sent to the current logged-in user
   const pendingRequests = useMemo(
     () =>
       sessions.filter(
-        (s) => s.mentorId === currentUser.id && s.status === "pending" && !s.bookedAgain
+        (s) =>
+          s.mentorId === currentUser.id &&
+          s.status === "pending" &&
+          !isInitialRequestExpired(s)
+      ),
+    [sessions, currentUser.id]
+  );
+
+  // All pending requests including expired for display under pending tab
+  const allPendingRequests = useMemo(
+    () =>
+      sessions.filter(
+        (s) => s.mentorId === currentUser.id && s.status === "pending"
       ),
     [sessions, currentUser.id]
   );
@@ -33,20 +46,20 @@ const MentorRequestsLayout = () => {
       sessions.filter(
         (s) =>
           (s.mentorId === currentUser.id || s.learnerId === currentUser.id) &&
-          s.status === "upcoming"
+          s.status === "upcoming" &&
+          !isSessionExpired(s)
       ),
     [sessions, currentUser.id]
   );
 
   const displayedSessions = useMemo(() => {
-    if (activeTab === "pending") return pendingRequests;
+    if (activeTab === "pending") return allPendingRequests;
     if (activeTab === "upcoming") return upcomingSessions;
     return sessions.filter(
       (s) =>
-        (s.mentorId === currentUser.id || s.learnerId === currentUser.id) &&
-        !s.bookedAgain
+        s.mentorId === currentUser.id || s.learnerId === currentUser.id
     );
-  }, [activeTab, pendingRequests, upcomingSessions, sessions, currentUser.id]);
+  }, [activeTab, allPendingRequests, upcomingSessions, sessions, currentUser.id]);
 
   const handleConfirmAccept = () => {
     if (acceptingSession) {

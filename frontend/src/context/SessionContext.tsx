@@ -1,14 +1,19 @@
 import { createContext, useState } from "react";
 import type { ReactNode } from "react";
 import { sessions as initialSessions } from "@/data/sessions";
-import type { Session } from "@/data/sessions";
+import type { Session, RescheduleRequest } from "@/data/sessions";
 import { useWallet } from "@/hooks/useWallet";
 
 import { useNotifications } from "@/hooks/useNotifications";
 import { users as initialUsers } from "@/data/mentors";
 import type { User } from "@/data/mentors";
 
-import { isSessionBeforeStart } from "@/utils/sessionTime";
+import {
+  isSessionBeforeStart,
+  isInitialRequestExpired,
+  isRescheduleRequestExpired,
+  validateSessionSchedule,
+} from "@/utils/sessionTime";
 
 export interface SessionReview {
   sessionId: string;
@@ -49,6 +54,18 @@ export interface SessionContextType {
   getReviewBySessionId: (
     sessionId: string | undefined
   ) => SessionReview | undefined;
+  rescheduleRequests: import("@/data/sessions").RescheduleRequest[];
+  createRescheduleRequest: (params: {
+    sessionId: string;
+    proposedDate: string;
+    proposedTime: string;
+    reason?: string;
+  }) => { success: boolean; error?: string };
+  acceptRescheduleRequest: (requestId: string) => { success: boolean; error?: string };
+  rejectRescheduleRequest: (requestId: string) => { success: boolean; error?: string };
+  getPendingRescheduleForSession: (
+    sessionId: string | undefined
+  ) => import("@/data/sessions").RescheduleRequest | undefined;
   rescheduleSession: (id: string, newDate: string, newTime: string) => boolean;
   cancelSession: (id: string) => boolean;
   cancelRequest: (id: string) => boolean;
@@ -61,7 +78,7 @@ export interface SessionContextType {
     roleOverride?: "mentor" | "learner"
   ) => { success: boolean; error?: string };
   submitReview: (review: Omit<SessionReview, "submittedAt" | "reviewerId" | "revieweeId"> & { reviewerId?: string; revieweeId?: string }) => boolean;
-  addSession: (session: Session, replacedSessionId?: string) => void;
+  addSession: (session: Session) => void;
 }
 
 export const SessionContext = createContext<SessionContextType | undefined>(
@@ -125,6 +142,7 @@ const initialReviews: SessionReview[] = [
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
+  const [rescheduleRequests, setRescheduleRequests] = useState<RescheduleRequest[]>([]);
   const [reviews, setReviews] = useState<SessionReview[]>(initialReviews);
   const [usersState, setUsersState] = useState<User[]>(initialUsers);
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
@@ -318,11 +336,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const incomingRequests = sessions.filter(
-    (s) => s.mentorId === currentUser.id && s.status === "pending" && !s.bookedAgain
+    (s) => s.mentorId === currentUser.id && s.status === "pending" && !isInitialRequestExpired(s)
   );
 
   const outgoingRequests = sessions.filter(
-    (s) => s.learnerId === currentUser.id && s.status === "pending" && !s.bookedAgain
+    (s) => s.learnerId === currentUser.id && s.status === "pending" && !isInitialRequestExpired(s)
   );
 
   const getSessionById = (id: string | undefined): Session | undefined => {
@@ -337,23 +355,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return reviews.find((item) => item.sessionId === sessionId);
   };
 
-  const addSession = (newSession: Session, replacedSessionId?: string) => {
-    setSessions((prev) => {
-      let next = [newSession, ...prev];
-      if (replacedSessionId) {
-        next = next.map((s) => {
-          if (s.id === replacedSessionId) {
-            return {
-              ...s,
-              bookedAgain: true,
-              replacedBySessionId: newSession.id,
-            };
-          }
-          return s;
-        });
-      }
-      return next;
-    });
+  const addSession = (newSession: Session) => {
+    setSessions((prev) => [newSession, ...prev]);
 
     // Notify the mentor about the new incoming request
     addNotification({
@@ -363,9 +366,226 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       message: `${newSession.learnerName || currentUser.name || "A student"} requested a ${newSession.topic} session with you.`,
       timestamp: "Just now",
       relatedId: newSession.id,
-      relatedRoute: "/mentor-requests",
+      relatedRoute: `/session-details/${newSession.id}`,
       group: "today",
     });
+  };
+
+  const getPendingRescheduleForSession = (
+    sessionId: string | undefined
+  ): RescheduleRequest | undefined => {
+    if (!sessionId) return undefined;
+    return rescheduleRequests.find(
+      (r) => r.sessionId === sessionId && r.status === "pending" && !isRescheduleRequestExpired(r)
+    );
+  };
+
+  const createRescheduleRequest = ({
+    sessionId,
+    proposedDate,
+    proposedTime,
+    reason,
+  }: {
+    sessionId: string;
+    proposedDate: string;
+    proposedTime: string;
+    reason?: string;
+  }): { success: boolean; error?: string } => {
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) {
+      return { success: false, error: "Session not found." };
+    }
+
+    if (session.status !== "upcoming") {
+      return {
+        success: false,
+        error: `Only upcoming sessions can be rescheduled. Current status: ${session.status}`,
+      };
+    }
+
+    const isMentor = currentUser.id === session.mentorId;
+    const isLearner = currentUser.id === session.learnerId;
+    if (!isMentor && !isLearner) {
+      return {
+        success: false,
+        error: "You are not a participant in this session.",
+      };
+    }
+
+    // Check if there is already a pending reschedule request
+    const existingPending = rescheduleRequests.find(
+      (r) => r.sessionId === sessionId && r.status === "pending" && !isRescheduleRequestExpired(r)
+    );
+    if (existingPending) {
+      return {
+        success: false,
+        error: "A reschedule request is already pending for this session.",
+      };
+    }
+
+    // Validate mentor availability & schedule conflicts ONLY if learner is requesting
+    if (isLearner) {
+      const mentorUser = getUserById(session.mentorId);
+      const validation = validateSessionSchedule(
+        mentorUser,
+        proposedDate,
+        proposedTime,
+        session.duration,
+        sessions,
+        session.id
+      );
+
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: validation.error || "The proposed time slot is unavailable.",
+        };
+      }
+    }
+
+    const requestedById = currentUser.id;
+    const requestedForId = isMentor ? session.learnerId : session.mentorId;
+    const newRequestId = `resched-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+
+    const newRequest: RescheduleRequest = {
+      id: newRequestId,
+      sessionId: session.id,
+      requestedById,
+      requestedForId,
+      mentorId: session.mentorId,
+      learnerId: session.learnerId,
+      topic: session.topic,
+      currentDate: session.date,
+      currentTime: session.time,
+      proposedDate,
+      proposedTime,
+      duration: session.duration,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      reason: reason?.trim() || undefined,
+    };
+
+    setRescheduleRequests((prev) => [newRequest, ...prev]);
+
+    // Notify recipient
+    addNotification({
+      userId: requestedForId,
+      type: "session",
+      title: "Reschedule Proposed",
+      message: `${currentUser.name} proposed to reschedule your ${session.topic} session to ${proposedDate} at ${proposedTime}.`,
+      timestamp: "Just now",
+      relatedId: session.id,
+      relatedRoute: `/session-details/${session.id}`,
+      group: "today",
+    });
+
+    return { success: true };
+  };
+
+  const acceptRescheduleRequest = (
+    requestId: string
+  ): { success: boolean; error?: string } => {
+    const req = rescheduleRequests.find((r) => r.id === requestId);
+    if (!req) {
+      return { success: false, error: "Reschedule request not found." };
+    }
+
+    if (req.status !== "pending") {
+      return { success: false, error: `Reschedule request is already ${req.status}.` };
+    }
+
+    if (isRescheduleRequestExpired(req)) {
+      setRescheduleRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, status: "expired" } : r))
+      );
+      return { success: false, error: "This reschedule proposal has expired." };
+    }
+
+    if (currentUser.id !== req.requestedForId) {
+      return { success: false, error: "Only the recipient can accept this reschedule proposal." };
+    }
+
+    const session = sessions.find((s) => s.id === req.sessionId);
+    if (!session || session.status !== "upcoming") {
+      return { success: false, error: "Associated session is no longer active." };
+    }
+
+    // 1. Update reschedule request status
+    setRescheduleRequests((prev) =>
+      prev.map((r) =>
+        r.id === requestId
+          ? { ...r, status: "accepted", respondedAt: new Date().toISOString() }
+          : r
+      )
+    );
+
+    // 2. Update actual session date and time
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id === req.sessionId) {
+          return {
+            ...s,
+            date: req.proposedDate,
+            time: req.proposedTime,
+          };
+        }
+        return s;
+      })
+    );
+
+    // 3. Notify requester
+    addNotification({
+      userId: req.requestedById,
+      type: "session",
+      title: "Reschedule Accepted",
+      message: `${currentUser.name} accepted your reschedule proposal for ${req.topic}. The session is now scheduled for ${req.proposedDate} at ${req.proposedTime}.`,
+      timestamp: "Just now",
+      relatedId: session.id,
+      relatedRoute: `/session-details/${session.id}`,
+      group: "today",
+    });
+
+    return { success: true };
+  };
+
+  const rejectRescheduleRequest = (
+    requestId: string
+  ): { success: boolean; error?: string } => {
+    const req = rescheduleRequests.find((r) => r.id === requestId);
+    if (!req) {
+      return { success: false, error: "Reschedule request not found." };
+    }
+
+    if (req.status !== "pending") {
+      return { success: false, error: `Reschedule request is already ${req.status}.` };
+    }
+
+    if (currentUser.id !== req.requestedForId) {
+      return { success: false, error: "Only the recipient can decline this reschedule proposal." };
+    }
+
+    // Update request status to rejected
+    setRescheduleRequests((prev) =>
+      prev.map((r) =>
+        r.id === requestId
+          ? { ...r, status: "rejected", respondedAt: new Date().toISOString() }
+          : r
+      )
+    );
+
+    // Notify requester
+    addNotification({
+      userId: req.requestedById,
+      type: "session",
+      title: "Reschedule Declined",
+      message: `${currentUser.name} declined your reschedule proposal for ${req.topic}. The session remains at its original scheduled time.`,
+      timestamp: "Just now",
+      relatedId: req.sessionId,
+      relatedRoute: `/session-details/${req.sessionId}`,
+      group: "today",
+    });
+
+    return { success: true };
   };
 
   const rescheduleSession = (
@@ -407,6 +627,15 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         }
         return session;
       })
+    );
+
+    // Also cancel any pending reschedule requests for this session
+    setRescheduleRequests((prev) =>
+      prev.map((r) =>
+        r.sessionId === id && r.status === "pending"
+          ? { ...r, status: "cancelled" }
+          : r
+      )
     );
 
     // Notify the counterpart
@@ -468,6 +697,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     );
     if (!targetSession) return false;
 
+    // Prevent accepting expired requests
+    if (isInitialRequestExpired(targetSession)) {
+      return false;
+    }
+
     setSessions((prev) =>
       prev.map((session) => {
         if (session.id === id && session.status === "pending") {
@@ -501,6 +735,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       (s) => s.id === id && s.status === "pending"
     );
     if (!targetSession) return false;
+
+    // Prevent rejecting expired requests
+    if (isInitialRequestExpired(targetSession)) {
+      return false;
+    }
 
     setSessions((prev) =>
       prev.map((session) => {
@@ -720,6 +959,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         setCurrentUserRole,
         getSessionById,
         getReviewBySessionId,
+        rescheduleRequests,
+        createRescheduleRequest,
+        acceptRescheduleRequest,
+        rejectRescheduleRequest,
+        getPendingRescheduleForSession,
         rescheduleSession,
         cancelSession,
         cancelRequest,

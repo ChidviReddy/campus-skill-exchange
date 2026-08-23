@@ -5,33 +5,43 @@ import {
   Coins,
 } from "lucide-react";
 import type { Session } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
 
 type CurrentSessionCardProps = {
   session: Session;
 };
 
 const CurrentSessionCard = ({ session }: CurrentSessionCardProps) => {
+  const { currentUser } = useSessions();
+  const isMentor = currentUser.id === session.mentorId;
+
+  const displayAvatar = isMentor
+    ? (session.learnerName || "Student").slice(0, 2).toUpperCase()
+    : (session.mentorAvatar || session.mentor.slice(0, 2).toUpperCase());
+
   return (
     <section className="rounded-2xl border border-violet-100 bg-white p-7 shadow-sm">
       <h2 className="text-lg font-semibold text-[#211653]">
         Current Session Details
       </h2>
 
-      {/* Topic and Mentor */}
+      {/* Topic and Counterpart */}
       <div className="mt-5 flex items-start gap-4 rounded-xl bg-violet-50/70 p-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-base font-bold text-white">
-          {session.mentorAvatar ||
-            session.mentor
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2)}
+          {displayAvatar}
         </div>
         <div>
           <h3 className="font-semibold text-[#211653]">{session.topic}</h3>
           <p className="text-sm text-slate-600">
-            Mentor: <span className="font-medium text-slate-800">{session.mentor}</span> · {session.mentorRole}
+            {isMentor ? (
+              <>
+                Learner: <span className="font-medium text-slate-800">{session.learnerName || "Student"}</span>
+              </>
+            ) : (
+              <>
+                Mentor: <span className="font-medium text-slate-800">{session.mentor}</span> · {session.mentorRole}
+              </>
+            )}
           </p>
         </div>
       </div>

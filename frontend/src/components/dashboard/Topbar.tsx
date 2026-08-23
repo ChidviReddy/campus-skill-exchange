@@ -124,6 +124,7 @@ const Topbar = () => {
                         onClick={() => {
                           switchUserById(u.id);
                           setIsUserMenuOpen(false);
+                          navigate("/dashboard");
                         }}
                         className={`flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-left transition ${
                           isSelected

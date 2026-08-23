@@ -2,7 +2,11 @@ import { CalendarDays, Clock3, CheckCircle2, XCircle, Inbox } from "lucide-react
 import { useNavigate } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
 import type { Session, SessionFilter } from "@/data/sessions";
-import { getSessionStartDateTime } from "@/utils/sessionTime";
+import {
+  getSessionStartDateTime,
+  isSessionExpired,
+  isInitialRequestExpired,
+} from "@/utils/sessionTime";
 import SessionCard from "./SessionCard";
 
 type SessionListProps = {
@@ -20,7 +24,6 @@ const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
   const { sessions, currentUser } = useSessions();
 
   const userSessions = sessions.filter((session) => {
-    if (session.bookedAgain) return false;
     // For pending requests: show outgoing learner requests under My Sessions
     if (session.status === "pending") {
       return session.learnerId === currentUser.id;
@@ -33,66 +36,77 @@ const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
   });
 
   // Filter sessions according to active tab
-  let filtered = userSessions;
+  let displayedSessions: Session[] = [];
+
   if (activeFilter === "upcoming") {
-    filtered = userSessions.filter(
-      (s) => s.status === "upcoming" || s.isStarted
-    );
+    // Active unexpired upcoming sessions + in-progress sessions
+    displayedSessions = userSessions
+      .filter((s) => (s.status === "upcoming" && !isSessionExpired(s)) || s.isStarted)
+      .sort((a, b) => {
+        if (a.isStarted && !b.isStarted) return -1;
+        if (!a.isStarted && b.isStarted) return 1;
+        return getSessionTimestamp(a) - getSessionTimestamp(b);
+      });
   } else if (activeFilter === "pending") {
-    filtered = userSessions.filter((s) => s.status === "pending");
+    // Active unexpired pending requests first
+    displayedSessions = userSessions
+      .filter((s) => s.status === "pending" && !isInitialRequestExpired(s))
+      .sort((a, b) => parseInt(b.id, 10) - parseInt(a.id, 10));
   } else if (activeFilter === "completed") {
-    filtered = userSessions.filter((s) => s.status === "completed");
+    // Completed History: newest completed first, SLICED TO LATEST 10
+    displayedSessions = userSessions
+      .filter((s) => s.status === "completed")
+      .sort((a, b) => getSessionTimestamp(b) - getSessionTimestamp(a))
+      .slice(0, 10);
   } else if (activeFilter === "cancelled") {
-    filtered = userSessions.filter(
-      (s) => s.status === "cancelled" || s.status === "rejected"
-    );
+    // Cancelled, rejected, and expired sessions (both upcoming expired and initial request expired)
+    displayedSessions = userSessions
+      .filter(
+        (s) =>
+          s.status === "cancelled" ||
+          s.status === "rejected" ||
+          isSessionExpired(s) ||
+          (s.status === "pending" && isInitialRequestExpired(s))
+      )
+      .sort((a, b) => getSessionTimestamp(b) - getSessionTimestamp(a));
+  } else {
+    // "all" tab: Active Upcoming/In-progress -> Active Pending -> Latest 10 Completed -> Cancelled/Expired
+    const upcomingList = userSessions
+      .filter((s) => (s.status === "upcoming" && !isSessionExpired(s)) || s.isStarted)
+      .sort((a, b) => {
+        if (a.isStarted && !b.isStarted) return -1;
+        if (!a.isStarted && b.isStarted) return 1;
+        return getSessionTimestamp(a) - getSessionTimestamp(b);
+      });
+
+    const pendingList = userSessions
+      .filter((s) => s.status === "pending" && !isInitialRequestExpired(s))
+      .sort((a, b) => parseInt(b.id, 10) - parseInt(a.id, 10));
+
+    const completedList = userSessions
+      .filter((s) => s.status === "completed")
+      .sort((a, b) => getSessionTimestamp(b) - getSessionTimestamp(a))
+      .slice(0, 10);
+
+    const cancelledList = userSessions
+      .filter(
+        (s) =>
+          s.status === "cancelled" ||
+          s.status === "rejected" ||
+          isSessionExpired(s) ||
+          (s.status === "pending" && isInitialRequestExpired(s))
+      )
+      .sort((a, b) => getSessionTimestamp(b) - getSessionTimestamp(a));
+
+    displayedSessions = [
+      ...upcomingList,
+      ...pendingList,
+      ...completedList,
+      ...cancelledList,
+    ];
   }
 
-  // Sort sessions based on context
-  const sortedSessions = [...filtered].sort((a, b) => {
-    if (activeFilter === "upcoming") {
-      // In-progress sessions first, then nearest future sessions
-      if (a.isStarted && !b.isStarted) return -1;
-      if (!a.isStarted && b.isStarted) return 1;
-      return getSessionTimestamp(a) - getSessionTimestamp(b);
-    }
-
-    if (activeFilter === "pending") {
-      // Newest requests first (by id descending)
-      return parseInt(b.id, 10) - parseInt(a.id, 10);
-    }
-
-    if (activeFilter === "completed") {
-      // Most recent completions first
-      return getSessionTimestamp(b) - getSessionTimestamp(a);
-    }
-
-    if (activeFilter === "cancelled") {
-      // Most recent cancellations first
-      return getSessionTimestamp(b) - getSessionTimestamp(a);
-    }
-
-    // Default "all" tab sorting: In Progress -> Upcoming -> Pending -> Completed -> Cancelled
-    const priority: Record<string, number> = {
-      in_progress: 1,
-      upcoming: 2,
-      pending: 3,
-      completed: 4,
-      cancelled: 5,
-      rejected: 6,
-    };
-
-    const getStatusPriority = (s: Session) => {
-      if (s.isStarted) return 1;
-      return priority[s.status] || 99;
-    };
-
-    const priorityDiff = getStatusPriority(a) - getStatusPriority(b);
-    if (priorityDiff !== 0) return priorityDiff;
-    return getSessionTimestamp(b) - getSessionTimestamp(a);
-  });
-
-  if (sortedSessions.length === 0) {
+  if (displayedSessions.length === 0) {
     let emptyIcon = <CalendarDays size={36} className="text-violet-600" />;
     let emptyTitle = "No sessions found";
     let emptyDesc = "You don't have any sessions matching the selected filter.";
@@ -101,7 +115,7 @@ const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
 
     if (activeFilter === "upcoming") {
       emptyIcon = <Clock3 size={36} className="text-violet-600" />;
-      emptyTitle = "No upcoming sessions";
+      emptyTitle = "No active upcoming sessions";
       emptyDesc = "You have no upcoming mentorship sessions scheduled at the moment.";
     } else if (activeFilter === "pending") {
       emptyIcon = <Inbox size={36} className="text-amber-600" />;
@@ -109,12 +123,12 @@ const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
       emptyDesc = "You don't have any outgoing mentorship session requests waiting for acceptance.";
     } else if (activeFilter === "completed") {
       emptyIcon = <CheckCircle2 size={36} className="text-blue-600" />;
-      emptyTitle = "No completed sessions";
-      emptyDesc = "Sessions will appear here once they are finished by the mentor.";
+      emptyTitle = "No completed session history";
+      emptyDesc = "Completed mentorship sessions and teaching history will appear here.";
     } else if (activeFilter === "cancelled") {
       emptyIcon = <XCircle size={36} className="text-red-500" />;
-      emptyTitle = "No cancelled sessions";
-      emptyDesc = "You do not have any cancelled or declined session requests.";
+      emptyTitle = "No cancelled or expired sessions";
+      emptyDesc = "You do not have any cancelled, declined, or expired sessions in history.";
     }
 
     return (
@@ -146,7 +160,7 @@ const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
 
   return (
     <section className="space-y-6">
-      {sortedSessions.map((session) => (
+      {displayedSessions.map((session) => (
         <SessionCard
           key={session.id}
           {...session}
