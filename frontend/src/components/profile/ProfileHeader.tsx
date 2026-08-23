@@ -10,7 +10,7 @@ type ProfileHeaderProps = {
 
 const ProfileHeader = ({ mentor }: ProfileHeaderProps) => {
   const navigate = useNavigate();
-  const { getOrCreateConversationForMentor } = useChat();
+  const { getOrCreateConversation } = useChat();
   const { currentUser, getUserRating } = useSessions();
   const isOwnProfile = currentUser.id === mentor.id;
   const ratingData = getUserRating(mentor.id);
@@ -24,11 +24,7 @@ const ProfileHeader = ({ mentor }: ProfileHeaderProps) => {
       .slice(0, 2);
 
   const handleMessage = () => {
-    const conv = getOrCreateConversationForMentor(
-      mentor.name,
-      mentor.role,
-      mentor.avatar
-    );
+    const conv = getOrCreateConversation(mentor.id);
     navigate(`/messages/${conv.id}`);
   };
 

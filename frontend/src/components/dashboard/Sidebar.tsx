@@ -11,6 +11,7 @@ import {
 import { NavLink } from "react-router-dom";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useSessions } from "@/hooks/useSessions";
+import { useChat } from "@/hooks/useChat";
 
 const menuItems = [
   {
@@ -57,6 +58,7 @@ const menuItems = [
 
 const Sidebar = () => {
   const { unreadCount } = useNotifications();
+  const { totalUnreadCount } = useChat();
   const { sessions, currentUser } = useSessions();
 
   const pendingRequestsCount = sessions.filter(
@@ -110,6 +112,12 @@ const Sidebar = () => {
                 <span className="flex-1 text-[15px] font-medium">
                   {item.label}
                 </span>
+
+                {item.label === "Messages" && totalUnreadCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-violet-100 px-1.5 text-xs font-bold text-violet-700">
+                    {totalUnreadCount}
+                  </span>
+                )}
 
                 {item.label === "Notifications" && unreadCount > 0 && (
                   <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-violet-100 px-1.5 text-xs font-bold text-violet-700">

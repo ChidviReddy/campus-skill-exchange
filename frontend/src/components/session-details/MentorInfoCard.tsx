@@ -10,7 +10,7 @@ type MentorInfoCardProps = {
 
 const MentorInfoCard = ({ session }: MentorInfoCardProps) => {
   const navigate = useNavigate();
-  const { getOrCreateConversationForMentor } = useChat();
+  const { getOrCreateConversation } = useChat();
   const { currentUser } = useSessions();
 
   const isLearner = currentUser.id === session.learnerId;
@@ -33,21 +33,9 @@ const MentorInfoCard = ({ session }: MentorInfoCardProps) => {
     .slice(0, 2);
 
   const handleMessage = () => {
-    if (isLearner) {
-      const conv = getOrCreateConversationForMentor(
-        session.mentor,
-        session.mentorRole,
-        session.mentorAvatar
-      );
-      navigate(`/messages/${conv.id}`);
-    } else {
-      const conv = getOrCreateConversationForMentor(
-        learnerName,
-        "Peer Learner",
-        learnerInitials
-      );
-      navigate(`/messages/${conv.id}`);
-    }
+    const targetUserId = isLearner ? session.mentorId : session.learnerId;
+    const conv = getOrCreateConversation(targetUserId, session.id);
+    navigate(`/messages/${conv.id}`);
   };
 
   if (!isLearner) {

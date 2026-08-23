@@ -23,29 +23,35 @@ const RecentChats = () => {
       </div>
 
       <div className="mt-6 space-y-3">
-        {recentList.map((chat) => (
-          <button
-            key={chat.id}
-            type="button"
-            onClick={() => navigate(`/messages/${chat.id}`)}
-            className="flex w-full cursor-pointer items-center gap-4 rounded-xl p-2 text-left transition hover:bg-violet-50"
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
-              {chat.participantAvatar ||
-                chat.participantName.slice(0, 2).toUpperCase()}
-            </div>
+        {recentList.length === 0 ? (
+          <p className="text-xs text-slate-400 py-2 text-center">
+            No recent chats yet.
+          </p>
+        ) : (
+          recentList.map((chat) => (
+            <button
+              key={chat.id}
+              type="button"
+              onClick={() => navigate(`/messages/${chat.id}`)}
+              className="flex w-full cursor-pointer items-center gap-4 rounded-xl p-2 text-left transition hover:bg-violet-50"
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
+                {chat.participantAvatar ||
+                  (chat.participantName || "U").slice(0, 2).toUpperCase()}
+              </div>
 
-            <div className="min-w-0 flex-1">
-              <h3 className="font-medium text-slate-800">
-                {chat.participantName}
-              </h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-medium text-slate-800">
+                  {chat.participantName}
+                </h3>
 
-              <p className="truncate text-sm text-slate-500">
-                {chat.lastMessage}
-              </p>
-            </div>
-          </button>
-        ))}
+                <p className="truncate text-sm text-slate-500">
+                  {chat.lastMessage}
+                </p>
+              </div>
+            </button>
+          ))
+        )}
       </div>
     </div>
   );

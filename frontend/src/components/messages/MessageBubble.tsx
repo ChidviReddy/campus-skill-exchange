@@ -1,11 +1,13 @@
 import type { Message } from "@/data/messages";
+import { useSessions } from "@/hooks/useSessions";
 
 type MessageBubbleProps = {
   message: Message;
 };
 
 const MessageBubble = ({ message }: MessageBubbleProps) => {
-  const isMe = message.senderId === "me";
+  const { currentUser } = useSessions();
+  const isMe = message.senderId === currentUser.id;
 
   return (
     <div
@@ -23,11 +25,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
         <p className="leading-relaxed whitespace-pre-wrap">{message.text}</p>
       </div>
 
-      <span
-        className={`mt-1 px-1 text-[11px] ${
-          isMe ? "text-slate-400" : "text-slate-400"
-        }`}
-      >
+      <span className="mt-1 px-1 text-[11px] text-slate-400">
         {message.timestamp}
       </span>
     </div>

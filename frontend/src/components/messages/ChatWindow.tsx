@@ -15,13 +15,14 @@ const ChatWindow = ({ conversation, onBack }: ChatWindowProps) => {
     useChat();
 
   const messages = getMessagesByConversationId(conversation.id);
+  const unreadCount = conversation.unreadCount || 0;
 
   // Mark unread messages as read when opening conversation
   useEffect(() => {
-    if (conversation.unreadCount > 0) {
+    if (unreadCount > 0) {
       markConversationAsRead(conversation.id);
     }
-  }, [conversation.id, conversation.unreadCount, markConversationAsRead]);
+  }, [conversation.id, unreadCount, markConversationAsRead]);
 
   const handleSendMessage = (text: string) => {
     sendMessage(conversation.id, text);

@@ -17,9 +17,9 @@ const ConversationList = ({
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredConversations = conversations.filter((c) =>
-    c.participantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.participantRole.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    (c.participantName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.participantRole || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.lastMessage || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const totalUnread = conversations.reduce(

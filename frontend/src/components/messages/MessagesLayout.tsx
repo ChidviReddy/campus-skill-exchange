@@ -20,7 +20,7 @@ const MessagesLayout = ({ conversationId }: MessagesLayoutProps) => {
     ? getConversationById(conversationId)
     : undefined;
 
-  // Handle invalid conversation ID (Step 16)
+  // Handle invalid or unauthorized conversation access (Step 20 & Step 21)
   if (conversationId && !selectedConversation) {
     return (
       <div className="flex min-h-screen bg-[#f8f7fc]">
@@ -40,8 +40,8 @@ const MessagesLayout = ({ conversationId }: MessagesLayoutProps) => {
                   Conversation not found
                 </h2>
 
-                <p className="mt-3 text-slate-500">
-                  The conversation you are looking for does not exist or may have been removed.
+                <p className="mt-3 text-slate-500 text-sm">
+                  You don't have access to this conversation, or it may have been removed.
                 </p>
 
                 <div className="mt-6">

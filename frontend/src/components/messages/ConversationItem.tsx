@@ -11,6 +11,8 @@ const ConversationItem = ({
   isActive,
   onSelect,
 }: ConversationItemProps) => {
+  const unreadCount = conversation.unreadCount || 0;
+
   return (
     <button
       type="button"
@@ -25,14 +27,14 @@ const ConversationItem = ({
       <div className="relative shrink-0">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-600 text-sm font-bold text-white shadow-xs">
           {conversation.participantAvatar ||
-            conversation.participantName
+            (conversation.participantName || "U")
               .split(" ")
               .map((n) => n[0])
               .join("")
               .toUpperCase()
               .slice(0, 2)}
         </div>
-        {conversation.unreadCount > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500" />
         )}
       </div>
@@ -55,7 +57,7 @@ const ConversationItem = ({
         <div className="mt-1 flex items-center justify-between gap-2">
           <p
             className={`truncate text-xs ${
-              conversation.unreadCount > 0
+              unreadCount > 0
                 ? "font-semibold text-slate-800"
                 : "text-slate-500"
             }`}
@@ -63,9 +65,9 @@ const ConversationItem = ({
             {conversation.lastMessage}
           </p>
 
-          {conversation.unreadCount > 0 && (
+          {unreadCount > 0 && (
             <span className="shrink-0 rounded-full bg-violet-600 px-2 py-0.5 text-[11px] font-bold text-white">
-              {conversation.unreadCount}
+              {unreadCount}
             </span>
           )}
         </div>

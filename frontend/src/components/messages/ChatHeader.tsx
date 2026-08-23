@@ -1,5 +1,7 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Calendar, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { Conversation } from "@/data/messages";
+import { useSessions } from "@/hooks/useSessions";
 
 type ChatHeaderProps = {
   conversation: Conversation;
@@ -7,6 +9,19 @@ type ChatHeaderProps = {
 };
 
 const ChatHeader = ({ conversation, onBack }: ChatHeaderProps) => {
+  const navigate = useNavigate();
+  const { getSessionById } = useSessions();
+
+  const session = conversation.sessionId
+    ? getSessionById(conversation.sessionId)
+    : undefined;
+
+  const handleProfileClick = () => {
+    if (conversation.participantId) {
+      navigate(`/profile/${conversation.participantId}`);
+    }
+  };
+
   return (
     <div className="flex items-center justify-between border-b border-violet-100 bg-white px-6 py-4">
       <div className="flex items-center gap-3.5">
@@ -22,11 +37,16 @@ const ChatHeader = ({ conversation, onBack }: ChatHeaderProps) => {
           </button>
         )}
 
-        {/* Avatar */}
-        <div className="relative">
+        {/* Avatar (Clickable to profile) */}
+        <button
+          type="button"
+          onClick={handleProfileClick}
+          className="relative cursor-pointer transition hover:opacity-90"
+          title={`View ${conversation.participantName}'s profile`}
+        >
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 font-bold text-white shadow-xs">
             {conversation.participantAvatar ||
-              conversation.participantName
+              (conversation.participantName || "U")
                 .split(" ")
                 .map((n) => n[0])
                 .join("")
@@ -34,18 +54,36 @@ const ChatHeader = ({ conversation, onBack }: ChatHeaderProps) => {
                 .slice(0, 2)}
           </div>
           <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
-        </div>
+        </button>
 
-        {/* Name & Role */}
+        {/* Name & Role (Clickable to profile) */}
         <div>
-          <h3 className="font-semibold text-slate-900 leading-tight">
+          <button
+            type="button"
+            onClick={handleProfileClick}
+            className="cursor-pointer text-left font-semibold text-slate-900 leading-tight hover:text-violet-700 transition"
+          >
             {conversation.participantName}
-          </h3>
+          </button>
           <p className="text-xs text-slate-500">
             {conversation.participantRole} · <span className="text-green-600 font-medium">Online</span>
           </p>
         </div>
       </div>
+
+      {/* Optional Session Association Badge */}
+      {session && (
+        <button
+          type="button"
+          onClick={() => navigate(`/session-details/${session.id}`)}
+          className="cursor-pointer hidden sm:flex items-center gap-2 rounded-xl bg-violet-50 px-3.5 py-1.5 text-xs font-semibold text-violet-700 border border-violet-100 hover:bg-violet-100/80 transition"
+          title="View related session details"
+        >
+          <Calendar size={14} className="text-violet-600" />
+          <span className="truncate max-w-[160px]">{session.topic}</span>
+          <ExternalLink size={12} className="text-violet-400" />
+        </button>
+      )}
     </div>
   );
 };
