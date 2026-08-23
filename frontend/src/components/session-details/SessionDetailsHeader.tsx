@@ -45,6 +45,10 @@ const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
     descriptionText = isLearner
       ? `You learned ${session.topic} from ${session.mentor}.`
       : `You taught ${session.topic} to ${session.learnerName || "Learner"}.`;
+  } else if (session.isStarted) {
+    descriptionText = isLearner
+      ? `Live mentorship session on ${session.topic} with ${session.mentor} is in progress.`
+      : `Live teaching session on ${session.topic} with ${session.learnerName || "Learner"} is in progress.`;
   } else if (session.status === "upcoming") {
     descriptionText = isLearner
       ? `Your upcoming mentorship session with ${session.mentor}.`
@@ -83,9 +87,16 @@ const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
               {session.topic}
             </h1>
 
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${currentStatus.badge}`}>
-              {currentStatus.text}
-            </span>
+            {session.isStarted ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3.5 py-1 text-xs font-bold text-emerald-800">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                In Progress
+              </span>
+            ) : (
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${currentStatus.badge}`}>
+                {currentStatus.text}
+              </span>
+            )}
           </div>
 
           <p className="mt-2 text-base text-slate-500">

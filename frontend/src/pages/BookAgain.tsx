@@ -8,7 +8,7 @@ import Topbar from "@/components/dashboard/Topbar";
 const BookAgain = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getSessionById } = useSessions();
+  const { getSessionById, currentUser } = useSessions();
   const session = getSessionById(id);
 
   // 1. Session not found
@@ -47,7 +47,49 @@ const BookAgain = () => {
     );
   }
 
-  // 2. Non-cancelled session
+  // 2. Non-learner check: only the learner of the cancelled session can rebook
+  if (session.learnerId !== currentUser.id) {
+    return (
+      <div className="flex min-h-screen bg-[#f8f7fc]">
+        <Sidebar />
+
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          <div className="p-6 md:p-8">
+            <Topbar />
+
+            <div className="mx-auto mt-16 max-w-lg text-center">
+              <div className="rounded-3xl border border-red-100 bg-white p-10 shadow-sm">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+                  <AlertCircle size={32} />
+                </div>
+
+                <h2 className="mt-4 text-2xl font-bold text-[#211653]">
+                  Access Denied
+                </h2>
+
+                <p className="mt-3 text-slate-500 text-sm">
+                  Only the assigned learner of this cancelled session can re-book.
+                </p>
+
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/my-sessions")}
+                    className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition hover:bg-violet-700 hover:shadow-md"
+                  >
+                    <ArrowLeft size={18} />
+                    Back to My Sessions
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // 3. Non-cancelled session
   if (session.status !== "cancelled") {
     return (
       <div className="flex min-h-screen bg-[#f8f7fc]">
@@ -90,7 +132,7 @@ const BookAgain = () => {
     );
   }
 
-  // 3. Already booked again check (prevent duplicate requests)
+  // 4. Already booked again check (prevent duplicate requests)
   if (session.bookedAgain) {
     return (
       <div className="flex min-h-screen bg-[#f8f7fc]">
@@ -145,7 +187,7 @@ const BookAgain = () => {
     );
   }
 
-  // 4. Valid cancelled session -> render RequestLayout with prefilled values
+  // 5. Valid cancelled session -> render RequestLayout with prefilled values
   return <RequestLayout sourceSession={session} isBookAgain={true} />;
 };
 

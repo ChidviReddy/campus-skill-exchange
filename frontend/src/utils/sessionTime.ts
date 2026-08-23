@@ -198,7 +198,15 @@ export const checkSessionAccess = (
     };
   }
 
-  // 4. Scheduled Start Time check
+  // 4. In-progress check: if mentor already started session, allow access
+  if (session.isStarted) {
+    return {
+      allowed: true,
+      status: "ALLOWED",
+    };
+  }
+
+  // 5. Scheduled Start Time check
   if (isSessionBeforeStart(session.date, session.time, now)) {
     const startTimeStr = formatStartTimeOnly(session.time);
     return {

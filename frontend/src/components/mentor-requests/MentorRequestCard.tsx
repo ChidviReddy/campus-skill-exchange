@@ -59,7 +59,7 @@ const MentorRequestCard = ({
   onReject,
 }: MentorRequestCardProps) => {
   const navigate = useNavigate();
-  const learnerName = session.learnerName || "Learner (Chidvi)";
+  const learnerName = session.learnerName || "Student Learner";
   const initials = learnerName
     .split(" ")
     .map((n) => n[0])

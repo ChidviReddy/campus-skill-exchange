@@ -132,7 +132,7 @@ const SessionActions = ({ session }: SessionActionsProps) => {
                 </div>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  {session.learnerName || "Learner (Chidvi)"} requested to learn{" "}
+                  {session.learnerName || "Student Learner"} requested to learn{" "}
                   <span className="font-semibold text-slate-700">{session.topic}</span> with you.
                 </p>
               </div>
@@ -297,17 +297,30 @@ const SessionActions = ({ session }: SessionActionsProps) => {
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-[#211653]">
-              Ready for your session?
+              {session.isStarted
+                ? "Session In Progress"
+                : "Ready for your session?"}
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              {isBeforeStart
+              {session.isStarted
+                ? "The live mentorship stream is open. Click below to enter the room."
+                : isBeforeStart
                 ? `Session opens on ${session.date} at ${startTimeDisplay}.`
                 : "Session is ready. Enter the room now."}
             </p>
           </div>
 
-          {isBeforeStart ? (
+          {session.isStarted ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/session-room/${session.id}`)}
+              className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-7 py-3 font-semibold text-white shadow-md transition hover:bg-emerald-700 hover:scale-105"
+            >
+              <Video size={19} className="animate-pulse" />
+              Enter Live Session
+            </button>
+          ) : isBeforeStart ? (
             <button
               type="button"
               onClick={() => navigate(`/session-room/${session.id}`)}
@@ -316,6 +329,15 @@ const SessionActions = ({ session }: SessionActionsProps) => {
             >
               <Video size={19} />
               Starts at {startTimeDisplay}
+            </button>
+          ) : isMentorForThisSession ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/session-room/${session.id}`)}
+              className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-7 py-3 font-semibold text-white transition hover:bg-emerald-700 hover:shadow-md"
+            >
+              <Video size={19} />
+              Start Session
             </button>
           ) : (
             <button

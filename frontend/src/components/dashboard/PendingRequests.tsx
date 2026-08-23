@@ -74,7 +74,7 @@ const PendingRequests = () => {
                 </Link>
 
                 <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                  <span>{request.learnerName || "Learner (Chidvi)"}</span>
+                  <span>{request.learnerName || "Student Learner"}</span>
                   <span>•</span>
                   <span className="flex items-center gap-1">
                     <Clock3 size={12} />

@@ -391,11 +391,52 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const cancelSession = (id: string): boolean => {
-    let updated = false;
+    const targetSession = sessions.find((s) => s.id === id);
+    if (!targetSession || (targetSession.status !== "upcoming" && !targetSession.isStarted)) {
+      return false;
+    }
+
     setSessions((prev) =>
       prev.map((session) => {
-        if (session.id === id && session.status === "upcoming") {
-          updated = true;
+        if (session.id === id) {
+          return {
+            ...session,
+            status: "cancelled",
+            isStarted: false,
+          };
+        }
+        return session;
+      })
+    );
+
+    // Notify the counterpart
+    const isLearner = currentUser.id === targetSession.learnerId;
+    const recipientId = isLearner ? targetSession.mentorId : targetSession.learnerId;
+    const cancellerName = currentUser.name;
+
+    addNotification({
+      userId: recipientId,
+      type: "session",
+      title: "Session Cancelled",
+      message: `${cancellerName} cancelled the upcoming session on ${targetSession.topic}.`,
+      timestamp: "Just now",
+      relatedId: targetSession.id,
+      relatedRoute: "/my-sessions",
+      group: "today",
+    });
+
+    return true;
+  };
+
+  const cancelRequest = (id: string): boolean => {
+    const targetSession = sessions.find(
+      (s) => s.id === id && s.status === "pending"
+    );
+    if (!targetSession) return false;
+
+    setSessions((prev) =>
+      prev.map((session) => {
+        if (session.id === id && session.status === "pending") {
           return {
             ...session,
             status: "cancelled",
@@ -404,22 +445,20 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         return session;
       })
     );
-    return updated;
-  };
 
-  const cancelRequest = (id: string): boolean => {
-    let updated = false;
-    setSessions((prev) => {
-      const exists = prev.some(
-        (session) => session.id === id && session.status === "pending"
-      );
-      if (exists) {
-        updated = true;
-        return prev.filter((session) => session.id !== id);
-      }
-      return prev;
+    // Notify the mentor that the request was cancelled
+    addNotification({
+      userId: targetSession.mentorId,
+      type: "session",
+      title: "Request Cancelled",
+      message: `${currentUser.name} cancelled their request for ${targetSession.topic}.`,
+      timestamp: "Just now",
+      relatedId: targetSession.id,
+      relatedRoute: "/mentor-requests",
+      group: "today",
     });
-    return updated;
+
+    return true;
   };
 
   // Mentor accepts a pending request -> status becomes "upcoming", 0 credit deduction
@@ -521,6 +560,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         return s;
       })
     );
+
+    // Notify the learner that the mentor started the session
+    addNotification({
+      userId: targetSession.learnerId,
+      type: "session",
+      title: "Session Started!",
+      message: `${currentUser.name} has started the session on ${targetSession.topic}. Click to enter the room now!`,
+      timestamp: "Just now",
+      relatedId: targetSession.id,
+      relatedRoute: `/session-room/${targetSession.id}`,
+      group: "today",
+    });
 
     return { success: true };
   };
