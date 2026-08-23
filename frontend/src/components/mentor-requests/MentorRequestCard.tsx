@@ -12,15 +12,20 @@ import {
   CalendarClock,
   FileText,
   AlertCircle,
+  Upload,
+  RefreshCw,
 } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
 import {
   isSessionBeforeStart,
   formatStartTimeOnly,
   isInitialRequestExpired,
   isSessionExpired,
 } from "@/utils/sessionTime";
+import UploadNotesModal from "../session-notes/UploadNotesModal";
 
 type MentorRequestCardProps = {
   session: Session;
@@ -65,6 +70,10 @@ const MentorRequestCard = ({
   onReject,
 }: MentorRequestCardProps) => {
   const navigate = useNavigate();
+  const { getSessionPdfNote } = useSessions();
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const pdfNote = getSessionPdfNote(session.id);
+
   const learnerName = session.learnerName || "Student Learner";
   const initials = learnerName
     .split(" ")
@@ -253,14 +262,36 @@ const MentorRequestCard = ({
 
           {session.status === "completed" && (
             <>
-              <button
-                type="button"
-                onClick={() => navigate(`/session-notes/${session.id}`)}
-                className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-700"
-              >
-                <FileText size={15} />
-                View Notes
-              </button>
+              {pdfNote ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/session-notes/${session.id}`)}
+                    className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-700"
+                  >
+                    <FileText size={15} />
+                    View Notes
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs font-semibold text-blue-700 shadow-xs transition hover:bg-blue-100"
+                  >
+                    <RefreshCw size={14} />
+                    Replace Notes
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-violet-700"
+                >
+                  <Upload size={14} />
+                  Upload Notes
+                </button>
+              )}
 
               <Link
                 to={`/session-details/${session.id}`}
@@ -283,6 +314,13 @@ const MentorRequestCard = ({
           )}
         </div>
       </div>
+
+      <UploadNotesModal
+        session={session}
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        existingNote={pdfNote}
+      />
     </div>
   );
 };

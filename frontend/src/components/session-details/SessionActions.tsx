@@ -9,6 +9,8 @@ import {
   Star,
   CheckCircle2,
   AlertCircle,
+  Upload,
+  RefreshCw,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -24,6 +26,7 @@ import CancelSessionModal from "../sessions/CancelSessionModal";
 import CancelRequestModal from "../sessions/CancelRequestModal";
 import AcceptRequestModal from "../mentor-requests/AcceptRequestModal";
 import RejectRequestModal from "../mentor-requests/RejectRequestModal";
+import UploadNotesModal from "../session-notes/UploadNotesModal";
 
 type SessionActionsProps = {
   session: Session;
@@ -39,11 +42,13 @@ const SessionActions = ({ session }: SessionActionsProps) => {
     getPendingRescheduleForSession,
     acceptRescheduleRequest,
     rejectRescheduleRequest,
+    getSessionPdfNote,
   } = useSessions();
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
   const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const isMentorForThisSession = currentUser.id === session.mentorId;
   const isLearnerForThisSession = currentUser.id === session.learnerId;
@@ -52,6 +57,7 @@ const SessionActions = ({ session }: SessionActionsProps) => {
   const startTimeDisplay = formatStartTimeOnly(session.time);
   const isExpired = isSessionExpired(session);
   const isInitialExpired = isInitialRequestExpired(session);
+  const pdfNote = getSessionPdfNote(session.id);
 
   const pendingReschedule = getPendingRescheduleForSession(session.id);
   const otherPartyName = isMentorForThisSession
@@ -310,69 +316,129 @@ const SessionActions = ({ session }: SessionActionsProps) => {
   // 5. COMPLETED
   if (session.status === "completed") {
     return (
-      <section className="rounded-2xl border border-blue-100 bg-white p-7 shadow-sm">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                Completed
-              </span>
-              {isLearnerForThisSession && !hasReview && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 border border-amber-300">
-                  <Star size={13} className="fill-amber-500 text-amber-500" />
-                  Review Required
+      <>
+        <section className="rounded-2xl border border-blue-100 bg-white p-7 shadow-sm">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                  Completed
                 </span>
-              )}
+                {isLearnerForThisSession && !hasReview && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 border border-amber-300">
+                    <Star size={13} className="fill-amber-500 text-amber-500" />
+                    Review Required
+                  </span>
+                )}
+                {isMentorForThisSession && pdfNote && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 border border-violet-200">
+                    <FileText size={13} />
+                    Notes Uploaded
+                  </span>
+                )}
+              </div>
+
+              <h2 className="mt-2 text-lg font-semibold text-[#211653]">
+                {isLearnerForThisSession ? "Session Completed" : "Teaching Session Completed"}
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                {isLearnerForThisSession
+                  ? hasReview
+                    ? `You completed this session with ${session.mentor}. Thank you for your feedback!`
+                    : `Please review your mentor to complete this session feedback.`
+                  : `You successfully taught ${session.learnerName || "your student"}. Your teaching reward of +10 credits has been added to your wallet.`}
+              </p>
             </div>
 
-            <h2 className="mt-2 text-lg font-semibold text-[#211653]">
-              {isLearnerForThisSession ? "Session Completed" : "Teaching Session Completed"}
-            </h2>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* MENTOR ACTIONS */}
+              {isMentorForThisSession && (
+                <>
+                  {pdfNote ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/session-notes/${session.id}`)}
+                        className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 hover:shadow-md"
+                      >
+                        <FileText size={18} />
+                        View Notes
+                      </button>
 
-            <p className="mt-1 text-sm text-slate-500">
-              {isLearnerForThisSession
-                ? hasReview
-                  ? `You completed this session with ${session.mentor}. Thank you for your feedback!`
-                  : `Please review your mentor to complete this session feedback.`
-                : `You successfully taught ${session.learnerName || "your student"}. Your teaching reward of +10 credits has been added to your wallet.`}
-            </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsUploadModalOpen(true)}
+                        className="cursor-pointer inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                      >
+                        <RefreshCw size={16} />
+                        Replace Notes
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsUploadModalOpen(true)}
+                      className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-violet-700 hover:shadow-md"
+                    >
+                      <Upload size={18} />
+                      Upload Notes
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* LEARNER ACTIONS */}
+              {isLearnerForThisSession && (
+                <>
+                  {pdfNote ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/session-notes/${session.id}`)}
+                      className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 hover:shadow-md"
+                    >
+                      <FileText size={18} />
+                      View Notes
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-4 py-3 rounded-xl border border-slate-200">
+                      No notes available yet.
+                    </span>
+                  )}
+
+                  {/* MANDATORY REVIEW FOR LEARNER ONLY */}
+                  {hasReview ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/review-session/${session.id}`)}
+                      className="cursor-pointer inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                    >
+                      <CheckCircle2 size={16} />
+                      Review Submitted
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/review-session/${session.id}`)}
+                      className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-violet-700 hover:scale-105"
+                    >
+                      <Star size={16} className="fill-amber-300 text-amber-300" />
+                      Leave Review
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
+        </section>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(`/session-notes/${session.id}`)}
-              className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 hover:shadow-md"
-            >
-              <FileText size={18} />
-              View Notes
-            </button>
-
-            {/* MANDATORY REVIEW FOR LEARNER ONLY */}
-            {isLearnerForThisSession && (
-              hasReview ? (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/review-session/${session.id}`)}
-                  className="cursor-pointer inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                >
-                  <CheckCircle2 size={16} />
-                  Review Submitted
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/review-session/${session.id}`)}
-                  className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-violet-700 hover:scale-105"
-                >
-                  <Star size={16} className="fill-amber-300 text-amber-300" />
-                  Leave Review
-                </button>
-              )
-            )}
-          </div>
-        </div>
-      </section>
+        <UploadNotesModal
+          session={session}
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          existingNote={pdfNote}
+        />
+      </>
     );
   }
 

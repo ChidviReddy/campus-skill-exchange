@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -8,6 +9,11 @@ import {
   MessageSquare,
   ExternalLink,
   Sparkles,
+  Upload,
+  RefreshCw,
+  Download,
+  AlertCircle,
+  FileCheck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Session } from "@/data/sessions";
@@ -15,17 +21,35 @@ import type { SessionNote } from "@/data/sessionNotes";
 import { useSessions } from "@/hooks/useSessions";
 import Sidebar from "../dashboard/Sidebar";
 import Topbar from "../dashboard/Topbar";
+import UploadNotesModal from "./UploadNotesModal";
 
 type SessionNotesLayoutProps = {
   session: Session;
   notes: SessionNote;
 };
 
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes) return "PDF Document";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
 const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
   const navigate = useNavigate();
-  const { currentUser, reviews } = useSessions();
+  const { currentUser, reviews, getSessionPdfNote } = useSessions();
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
   const isLearner = currentUser.id === session.learnerId;
+  const isMentor = currentUser.id === session.mentorId;
   const hasReview = reviews.some((r) => r.sessionId === session.id);
+  const pdfNote = getSessionPdfNote(session.id);
+
+  const handleOpenPdf = () => {
+    if (pdfNote?.fileUrl) {
+      window.open(pdfNote.fileUrl, "_blank");
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-[#f8f7fc]">
@@ -86,6 +110,93 @@ const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
                 </div>
               </div>
             </div>
+
+            {/* PDF DOCUMENT CARD / UPLOAD PROMPT SECTION */}
+            <section className="rounded-3xl border border-violet-100 bg-white p-7 shadow-sm">
+              {pdfNote ? (
+                /* PDF Attached View */
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+                      <FileCheck size={28} />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+                          PDF Notes Available
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {formatFileSize(pdfNote.fileSize)}
+                        </span>
+                      </div>
+
+                      <h2 className="mt-1 text-lg font-bold text-slate-900">
+                        {pdfNote.fileName}
+                      </h2>
+
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Uploaded by <span className="font-medium text-slate-700">{session.mentor}</span> for this session.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleOpenPdf}
+                      className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 hover:shadow-md"
+                    >
+                      <Download size={18} />
+                      Open / Download PDF
+                    </button>
+
+                    {isMentor && (
+                      <button
+                        type="button"
+                        onClick={() => setIsUploadModalOpen(true)}
+                        className="cursor-pointer inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white px-5 py-3 font-semibold text-violet-700 transition hover:bg-violet-50"
+                      >
+                        <RefreshCw size={16} />
+                        Replace Notes
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* No PDF Attached View */
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                      <AlertCircle size={24} />
+                    </div>
+
+                    <div>
+                      <h2 className="text-lg font-bold text-[#211653]">
+                        {isMentor ? "No PDF Notes Uploaded Yet" : "No Notes Available Yet"}
+                      </h2>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        {isMentor
+                          ? `You haven't uploaded any PDF notes for ${session.learnerName || "your student"} yet. Uploading notes helps learners review after the session.`
+                          : `Your mentor (${session.mentor}) has not uploaded PDF notes for this session yet.`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isMentor && (
+                    <button
+                      type="button"
+                      onClick={() => setIsUploadModalOpen(true)}
+                      className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-bold text-white shadow-sm transition hover:bg-violet-700 hover:shadow-md shrink-0"
+                    >
+                      <Upload size={18} />
+                      Upload Notes (PDF)
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
 
             {/* Topic & Summary Card */}
             <section className="rounded-3xl border border-violet-100 bg-white p-8 shadow-sm">
@@ -258,10 +369,37 @@ const SessionNotesLayout = ({ session, notes }: SessionNotesLayoutProps) => {
                   </button>
                 )
               )}
+
+              {isMentor && (
+                <button
+                  type="button"
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-7 py-3.5 font-semibold text-white shadow-sm transition hover:bg-violet-700 hover:shadow-md"
+                >
+                  {pdfNote ? (
+                    <>
+                      <RefreshCw size={18} />
+                      Replace Notes
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={18} />
+                      Upload Notes
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
       </main>
+
+      <UploadNotesModal
+        session={session}
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        existingNote={pdfNote}
+      />
     </div>
   );
 };

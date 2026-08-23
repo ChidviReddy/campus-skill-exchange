@@ -49,6 +49,17 @@ export interface RescheduleRequest {
   reason?: string;
 }
 
+export interface SessionPdfNote {
+  id: string;
+  sessionId: string;
+  mentorId: string;
+  learnerId: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize?: number;
+  uploadedAt: string;
+}
+
 export const sessions: Session[] = [
   {
     id: "1",

@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   CalendarClock,
   Check,
+  Upload,
+  RefreshCw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -26,6 +28,7 @@ import {
 } from "@/utils/sessionTime";
 import CancelSessionModal from "./CancelSessionModal";
 import CancelRequestModal from "./CancelRequestModal";
+import UploadNotesModal from "../session-notes/UploadNotesModal";
 
 type SessionCardProps = Session;
 
@@ -74,9 +77,11 @@ const SessionCard = (session: SessionCardProps) => {
     getPendingRescheduleForSession,
     acceptRescheduleRequest,
     rejectRescheduleRequest,
+    getSessionPdfNote,
   } = useSessions();
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const isLearner = currentUser.id === learnerId;
   const isMentor = currentUser.id === session.mentorId;
@@ -85,6 +90,7 @@ const SessionCard = (session: SessionCardProps) => {
   const startTimeDisplay = formatStartTimeOnly(time);
   const isExpired = isSessionExpired(session);
   const isInitialExpired = isInitialRequestExpired(session);
+  const pdfNote = getSessionPdfNote(id);
 
   const pendingReschedule = getPendingRescheduleForSession(id);
   const isRescheduleRecipient =
@@ -462,45 +468,99 @@ const SessionCard = (session: SessionCardProps) => {
         {/* COMPLETED */}
         {status === "completed" && (
           <>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                navigate(`/session-notes/${id}`);
-              }}
-              className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition-all hover:bg-blue-700"
-            >
-              <FileText size={16} />
-              View Notes
-            </button>
+            {/* MENTOR COMPLETED ACTIONS */}
+            {isMentor && (
+              <>
+                {pdfNote ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/session-notes/${id}`);
+                      }}
+                      className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition-all hover:bg-blue-700"
+                    >
+                      <FileText size={16} />
+                      View Notes
+                    </button>
 
-            {/* MANDATORY REVIEW FOR LEARNER ONLY */}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setIsUploadModalOpen(true);
+                      }}
+                      className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 font-semibold text-blue-700 transition-all hover:bg-blue-100"
+                    >
+                      <RefreshCw size={15} />
+                      Replace Notes
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsUploadModalOpen(true);
+                    }}
+                    className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-bold text-white shadow-sm transition-all hover:bg-violet-700 hover:shadow-md"
+                  >
+                    <Upload size={16} />
+                    Upload Notes
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* LEARNER COMPLETED ACTIONS */}
             {isLearner && (
-              hasReview ? (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    navigate(`/review-session/${id}`);
-                  }}
-                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-3 font-semibold text-emerald-700 transition-all hover:bg-emerald-100"
-                >
-                  <CheckCircle2 size={16} />
-                  Review Submitted
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    navigate(`/review-session/${id}`);
-                  }}
-                  className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-bold text-white shadow-md transition-all hover:bg-violet-700 hover:scale-105"
-                >
-                  <Star size={16} className="fill-amber-300 text-amber-300" />
-                  Leave Review
-                </button>
-              )
+              <>
+                {pdfNote ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/session-notes/${id}`);
+                    }}
+                    className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition-all hover:bg-blue-700"
+                  >
+                    <FileText size={16} />
+                    View Notes
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-200">
+                    No notes available yet.
+                  </span>
+                )}
+
+                {/* MANDATORY REVIEW FOR LEARNER ONLY */}
+                {hasReview ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/review-session/${id}`);
+                    }}
+                    className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-3 font-semibold text-emerald-700 transition-all hover:bg-emerald-100"
+                  >
+                    <CheckCircle2 size={16} />
+                    Review Submitted
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/review-session/${id}`);
+                    }}
+                    className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-bold text-white shadow-md transition-all hover:bg-violet-700 hover:scale-105"
+                  >
+                    <Star size={16} className="fill-amber-300 text-amber-300" />
+                    Leave Review
+                  </button>
+                )}
+              </>
             )}
           </>
         )}
@@ -530,6 +590,13 @@ const SessionCard = (session: SessionCardProps) => {
         session={session}
         isOpen={isCancelRequestModalOpen}
         onClose={() => setIsCancelRequestModalOpen(false)}
+      />
+
+      <UploadNotesModal
+        session={session}
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        existingNote={pdfNote}
       />
     </section>
   );

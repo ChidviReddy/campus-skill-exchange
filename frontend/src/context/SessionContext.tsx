@@ -1,7 +1,7 @@
 import { createContext, useState } from "react";
 import type { ReactNode } from "react";
 import { sessions as initialSessions } from "@/data/sessions";
-import type { Session, RescheduleRequest } from "@/data/sessions";
+import type { Session, RescheduleRequest, SessionPdfNote } from "@/data/sessions";
 import { useWallet } from "@/hooks/useWallet";
 
 import { useNotifications } from "@/hooks/useNotifications";
@@ -79,6 +79,14 @@ export interface SessionContextType {
   ) => { success: boolean; error?: string };
   submitReview: (review: Omit<SessionReview, "submittedAt" | "reviewerId" | "revieweeId"> & { reviewerId?: string; revieweeId?: string }) => boolean;
   addSession: (session: Session) => void;
+  sessionPdfNotes: SessionPdfNote[];
+  uploadSessionNote: (params: {
+    sessionId: string;
+    file: File | { fileName: string; fileUrl: string; fileSize?: number };
+  }) => { success: boolean; error?: string };
+  getSessionPdfNote: (
+    sessionId: string | undefined
+  ) => SessionPdfNote | undefined;
 }
 
 export const SessionContext = createContext<SessionContextType | undefined>(
@@ -143,6 +151,7 @@ const initialReviews: SessionReview[] = [
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
   const [rescheduleRequests, setRescheduleRequests] = useState<RescheduleRequest[]>([]);
+  const [sessionPdfNotes, setSessionPdfNotes] = useState<SessionPdfNote[]>([]);
   const [reviews, setReviews] = useState<SessionReview[]>(initialReviews);
   const [usersState, setUsersState] = useState<User[]>(initialUsers);
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
@@ -935,6 +944,114 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
+  const uploadSessionNote = ({
+    sessionId,
+    file,
+  }: {
+    sessionId: string;
+    file: File | { fileName: string; fileUrl: string; fileSize?: number };
+  }): { success: boolean; error?: string } => {
+    const targetSession = sessions.find((s) => s.id === sessionId);
+    if (!targetSession) {
+      return { success: false, error: "Session not found." };
+    }
+
+    if (targetSession.status !== "completed") {
+      return {
+        success: false,
+        error: "Notes can only be uploaded for completed sessions.",
+      };
+    }
+
+    if (currentUser.id !== targetSession.mentorId) {
+      return {
+        success: false,
+        error: "Only the mentor of this session can upload notes.",
+      };
+    }
+
+    let fileName = "";
+    let fileUrl = "";
+    let fileSize = 0;
+
+    if (file instanceof File) {
+      const isPdfMime = file.type === "application/pdf";
+      const isPdfExt = file.name.toLowerCase().endsWith(".pdf");
+      if (!isPdfMime && !isPdfExt) {
+        return {
+          success: false,
+          error: "Please upload a PDF file.",
+        };
+      }
+
+      const maxBytes = 10 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        return {
+          success: false,
+          error: "PDF must be smaller than 10 MB.",
+        };
+      }
+
+      fileName = file.name;
+      fileSize = file.size;
+      fileUrl = URL.createObjectURL(file);
+    } else {
+      if (!file.fileName.toLowerCase().endsWith(".pdf")) {
+        return {
+          success: false,
+          error: "Please upload a PDF file.",
+        };
+      }
+      if (file.fileSize && file.fileSize > 10 * 1024 * 1024) {
+        return {
+          success: false,
+          error: "PDF must be smaller than 10 MB.",
+        };
+      }
+      fileName = file.fileName;
+      fileUrl = file.fileUrl;
+      fileSize = file.fileSize || 1024 * 500;
+    }
+
+    const noteId = `note-${sessionId}`;
+    const newNote: SessionPdfNote = {
+      id: noteId,
+      sessionId: targetSession.id,
+      mentorId: targetSession.mentorId,
+      learnerId: targetSession.learnerId,
+      fileName,
+      fileUrl,
+      fileSize,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    setSessionPdfNotes((prev) => {
+      const filtered = prev.filter((n) => n.sessionId !== sessionId);
+      return [newNote, ...filtered];
+    });
+
+    // Notify learner
+    addNotification({
+      userId: targetSession.learnerId,
+      type: "session",
+      title: "Notes Uploaded",
+      message: `${currentUser.name} uploaded notes for your ${targetSession.topic} session.`,
+      timestamp: "Just now",
+      relatedId: targetSession.id,
+      relatedRoute: `/session-notes/${targetSession.id}`,
+      group: "today",
+    });
+
+    return { success: true };
+  };
+
+  const getSessionPdfNote = (
+    sessionId: string | undefined
+  ): SessionPdfNote | undefined => {
+    if (!sessionId) return undefined;
+    return sessionPdfNotes.find((n) => n.sessionId === sessionId);
+  };
+
   return (
     <SessionContext.Provider
       value={{
@@ -974,6 +1091,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         completeSession,
         submitReview,
         addSession,
+        sessionPdfNotes,
+        uploadSessionNote,
+        getSessionPdfNote,
       }}
     >
       {children}
