@@ -23,7 +23,7 @@ export interface Session {
   time: string;
   duration: string;
   credits: number;
-  status: "upcoming" | "pending" | "completed" | "cancelled" | "rejected";
+  status: "upcoming" | "in_progress" | "pending" | "completed" | "cancelled" | "rejected";
   role?: "mentor" | "learner";
   learnerName?: string;
   isStarted?: boolean;
@@ -76,7 +76,7 @@ export const sessions: Session[] = [
       "Learn how to work with React Hooks, manage component state effectively, and understand common patterns used in modern React applications.",
     learnerGoal:
       "I want to understand useEffect, custom hooks, and how to structure state management properly in larger React applications.",
-    date: "August 22, 2026",
+    date: "August 26, 2026",
     time: "5:00 PM – 6:00 PM",
     duration: "60 minutes",
     credits: 5,

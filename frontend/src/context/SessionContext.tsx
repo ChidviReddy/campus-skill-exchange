@@ -13,6 +13,7 @@ import {
   isInitialRequestExpired,
   isRescheduleRequestExpired,
   validateSessionSchedule,
+  getSessionStartDateTime,
 } from "@/utils/sessionTime";
 
 export interface SessionReview {
@@ -63,6 +64,7 @@ export interface SessionContextType {
   }) => { success: boolean; error?: string };
   acceptRescheduleRequest: (requestId: string) => { success: boolean; error?: string };
   rejectRescheduleRequest: (requestId: string) => { success: boolean; error?: string };
+  cancelRescheduleRequest: (requestId: string) => { success: boolean; error?: string };
   getPendingRescheduleForSession: (
     sessionId: string | undefined
   ) => import("@/data/sessions").RescheduleRequest | undefined;
@@ -432,6 +434,15 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       };
     }
 
+    // Check that proposed start time is in the future
+    const proposedStartDt = getSessionStartDateTime(proposedDate, proposedTime);
+    if (!proposedStartDt || proposedStartDt.getTime() <= Date.now()) {
+      return {
+        success: false,
+        error: "The proposed date and time must be in the future.",
+      };
+    }
+
     // Validate mentor availability & schedule conflicts ONLY if learner is requesting
     if (isLearner) {
       const mentorUser = getUserById(session.mentorId);
@@ -588,6 +599,46 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       type: "session",
       title: "Reschedule Declined",
       message: `${currentUser.name} declined your reschedule proposal for ${req.topic}. The session remains at its original scheduled time.`,
+      timestamp: "Just now",
+      relatedId: req.sessionId,
+      relatedRoute: `/session-details/${req.sessionId}`,
+      group: "today",
+    });
+
+    return { success: true };
+  };
+
+  const cancelRescheduleRequest = (
+    requestId: string
+  ): { success: boolean; error?: string } => {
+    const req = rescheduleRequests.find((r) => r.id === requestId);
+    if (!req) {
+      return { success: false, error: "Reschedule request not found." };
+    }
+
+    if (req.status !== "pending") {
+      return { success: false, error: `Reschedule request is already ${req.status}.` };
+    }
+
+    if (currentUser.id !== req.requestedById) {
+      return { success: false, error: "Only the requester can cancel this reschedule proposal." };
+    }
+
+    // Update request status to cancelled
+    setRescheduleRequests((prev) =>
+      prev.map((r) =>
+        r.id === requestId
+          ? { ...r, status: "cancelled", respondedAt: new Date().toISOString() }
+          : r
+      )
+    );
+
+    // Notify recipient
+    addNotification({
+      userId: req.requestedForId,
+      type: "session",
+      title: "Reschedule Cancelled",
+      message: `${currentUser.name} cancelled the reschedule proposal for ${req.topic}. The session remains at its original scheduled time.`,
       timestamp: "Just now",
       relatedId: req.sessionId,
       relatedRoute: `/session-details/${req.sessionId}`,
@@ -801,6 +852,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         if (s.id === id) {
           return {
             ...s,
+            status: "in_progress",
             isStarted: true,
             startedAt: new Date().toISOString(),
           };
@@ -1080,6 +1132,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         createRescheduleRequest,
         acceptRescheduleRequest,
         rejectRescheduleRequest,
+        cancelRescheduleRequest,
         getPendingRescheduleForSession,
         rescheduleSession,
         cancelSession,

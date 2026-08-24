@@ -21,7 +21,7 @@ const getSessionTimestamp = (session: Session): number => {
 
 const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
   const navigate = useNavigate();
-  const { sessions, currentUser } = useSessions();
+  const { sessions, currentUser, getPendingRescheduleForSession } = useSessions();
 
   const userSessions = sessions.filter((session) => {
     // For pending requests: show outgoing learner requests under My Sessions
@@ -39,9 +39,14 @@ const SessionList = ({ activeFilter = "all" }: SessionListProps) => {
   let displayedSessions: Session[] = [];
 
   if (activeFilter === "upcoming") {
-    // Active unexpired upcoming sessions + in-progress sessions
+    // Active unexpired upcoming sessions + in-progress sessions + sessions with pending reschedule
     displayedSessions = userSessions
-      .filter((s) => (s.status === "upcoming" && !isSessionExpired(s)) || s.isStarted)
+      .filter(
+        (s) =>
+          (s.status === "upcoming" &&
+            (!isSessionExpired(s) || Boolean(getPendingRescheduleForSession(s.id)))) ||
+          s.isStarted
+      )
       .sort((a, b) => {
         if (a.isStarted && !b.isStarted) return -1;
         if (!a.isStarted && b.isStarted) return 1;

@@ -3,6 +3,7 @@ import {
   Clock3,
   Timer,
   Coins,
+  CalendarClock,
 } from "lucide-react";
 import type { Session } from "@/data/sessions";
 import { useSessions } from "@/hooks/useSessions";
@@ -12,7 +13,8 @@ type SessionInfoCardProps = {
 };
 
 const SessionInfoCard = ({ session }: SessionInfoCardProps) => {
-  const { currentUser } = useSessions();
+  const { currentUser, getPendingRescheduleForSession } = useSessions();
+  const pendingReschedule = getPendingRescheduleForSession(session.id);
   const isLearner = currentUser.id === session.learnerId;
 
   // Role-specific credit calculation and presentation
@@ -140,6 +142,17 @@ const SessionInfoCard = ({ session }: SessionInfoCardProps) => {
             </div>
           </div>
         </div>
+
+        {/* Pending Reschedule Proposal Highlight */}
+        {pendingReschedule && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 flex items-center gap-3">
+            <CalendarClock size={18} className="text-amber-700 shrink-0" />
+            <div className="text-xs">
+              <span className="font-bold text-amber-950">Reschedule Pending:</span>{" "}
+              <span className="text-amber-900 font-semibold">{pendingReschedule.proposedDate} at {pendingReschedule.proposedTime}</span>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

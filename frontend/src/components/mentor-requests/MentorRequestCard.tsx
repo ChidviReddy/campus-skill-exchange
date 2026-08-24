@@ -34,7 +34,7 @@ type MentorRequestCardProps = {
 };
 
 const statusBadgeConfig: Record<
-  "upcoming" | "pending" | "completed" | "cancelled" | "rejected",
+  "upcoming" | "in_progress" | "pending" | "completed" | "cancelled" | "rejected",
   { bg: string; text: string; label: string }
 > = {
   pending: {
@@ -46,6 +46,11 @@ const statusBadgeConfig: Record<
     bg: "bg-emerald-100 text-emerald-800",
     text: "text-emerald-800",
     label: "Upcoming Session",
+  },
+  in_progress: {
+    bg: "bg-emerald-100 text-emerald-800",
+    text: "text-emerald-800",
+    label: "In Progress",
   },
   completed: {
     bg: "bg-blue-100 text-blue-800",
@@ -70,9 +75,20 @@ const MentorRequestCard = ({
   onReject,
 }: MentorRequestCardProps) => {
   const navigate = useNavigate();
-  const { getSessionPdfNote } = useSessions();
+  const {
+    getSessionPdfNote,
+    getPendingRescheduleForSession,
+    acceptRescheduleRequest,
+    rejectRescheduleRequest,
+    currentUser,
+  } = useSessions();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const pdfNote = getSessionPdfNote(session.id);
+  const pendingReschedule = getPendingRescheduleForSession(session.id);
+  const isRescheduleRecipient =
+    pendingReschedule && currentUser.id === pendingReschedule.requestedForId;
+  const isRescheduleRequester =
+    pendingReschedule && currentUser.id === pendingReschedule.requestedById;
 
   const learnerName = session.learnerName || "Student Learner";
   const initials = learnerName
@@ -88,7 +104,7 @@ const MentorRequestCard = ({
   let badgeLabel = statusBadgeConfig[session.status]?.label || "Pending Request";
   let badgeBg = statusBadgeConfig[session.status]?.bg || "bg-amber-100 text-amber-800";
 
-  if (isInitialExpired || isUpcomingExpired) {
+  if (!pendingReschedule && (isInitialExpired || isUpcomingExpired)) {
     badgeLabel = "Expired";
     badgeBg = "bg-slate-100 text-slate-700";
   }
@@ -113,6 +129,12 @@ const MentorRequestCard = ({
                 >
                   {badgeLabel}
                 </span>
+                {pendingReschedule && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                    <CalendarClock size={12} className="text-amber-600" />
+                    Reschedule Proposed
+                  </span>
+                )}
               </div>
 
               <p className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -164,6 +186,61 @@ const MentorRequestCard = ({
               +10 Credits at completion
             </span>
           </div>
+
+          {/* Pending Reschedule Proposal Banner */}
+          {pendingReschedule && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                    <CalendarClock size={16} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-amber-950">
+                      {isRescheduleRecipient
+                        ? `${learnerName} proposed a new schedule:`
+                        : "You proposed a new schedule:"}
+                    </p>
+                    <p className="text-xs font-semibold text-amber-800 mt-0.5">
+                      Proposed: {pendingReschedule.proposedDate} at {pendingReschedule.proposedTime}
+                    </p>
+                    {pendingReschedule.reason && (
+                      <p className="text-xs italic text-amber-700 mt-1">
+                        Note: "{pendingReschedule.reason}"
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {isRescheduleRecipient && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => rejectRescheduleRequest(pendingReschedule.id)}
+                      className="cursor-pointer inline-flex items-center gap-1 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                    >
+                      <X size={14} />
+                      Reject Reschedule
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => acceptRescheduleRequest(pendingReschedule.id)}
+                      className="cursor-pointer inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+                    >
+                      <Check size={14} />
+                      Accept Reschedule
+                    </button>
+                  </div>
+                )}
+
+                {isRescheduleRequester && (
+                  <span className="text-xs font-semibold text-amber-700 italic">
+                    Waiting for learner response
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -213,9 +290,9 @@ const MentorRequestCard = ({
               {isSessionBeforeStart(session.date, session.time) ? (
                 <button
                   type="button"
-                  onClick={() => navigate(`/session-room/${session.id}`)}
-                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-violet-100 px-4 py-2.5 text-xs font-semibold text-violet-700 shadow-xs transition hover:bg-violet-200"
-                  title={`Session starts at ${formatStartTimeOnly(session.time)}`}
+                  disabled
+                  className="cursor-not-allowed inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-500 opacity-80 shadow-xs"
+                  title={`Start Session will be available at ${formatStartTimeOnly(session.time)}`}
                 >
                   <Video size={15} />
                   Starts at {formatStartTimeOnly(session.time)}
@@ -224,21 +301,31 @@ const MentorRequestCard = ({
                 <button
                   type="button"
                   onClick={() => navigate(`/session-room/${session.id}`)}
-                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-violet-700 hover:shadow-md"
+                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 hover:shadow-md"
                 >
                   <Video size={15} />
-                  Join Session
+                  Start Session
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() => navigate(`/reschedule-session/${session.id}`)}
-                className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-xs font-semibold text-violet-700 shadow-xs transition hover:bg-violet-50"
-              >
-                <CalendarClock size={15} />
-                Reschedule
-              </button>
+              {!pendingReschedule ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/reschedule-session/${session.id}`)}
+                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-xs font-semibold text-violet-700 shadow-xs transition hover:bg-violet-50"
+                >
+                  <CalendarClock size={15} />
+                  Reschedule
+                </button>
+              ) : (
+                <Link
+                  to={`/session-details/${session.id}`}
+                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-900 shadow-xs transition hover:bg-amber-100"
+                >
+                  <CalendarClock size={15} />
+                  View Reschedule
+                </Link>
+              )}
 
               <Link
                 to={`/session-details/${session.id}`}

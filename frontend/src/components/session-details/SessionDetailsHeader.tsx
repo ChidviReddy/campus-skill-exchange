@@ -9,12 +9,16 @@ type SessionDetailsHeaderProps = {
 };
 
 const statusBadgeStyles: Record<
-  "upcoming" | "pending" | "completed" | "cancelled" | "rejected",
+  "upcoming" | "in_progress" | "pending" | "completed" | "cancelled" | "rejected",
   { badge: string; text: string }
 > = {
   upcoming: {
     badge: "bg-green-100 text-green-700",
     text: "Upcoming",
+  },
+  in_progress: {
+    badge: "bg-emerald-100 text-emerald-800",
+    text: "In Progress",
   },
   pending: {
     badge: "bg-amber-100 text-amber-700",
@@ -36,14 +40,22 @@ const statusBadgeStyles: Record<
 
 const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
   const navigate = useNavigate();
-  const { currentUser } = useSessions();
+  const { currentUser, getPendingRescheduleForSession } = useSessions();
   const isLearner = currentUser.id === session.learnerId;
   const currentStatus = statusBadgeStyles[session.status];
   const isExpired = isSessionExpired(session);
   const isInitialExpired = isInitialRequestExpired(session);
+  const pendingReschedule = getPendingRescheduleForSession(session.id);
+  const isRescheduleRecipient =
+    pendingReschedule && currentUser.id === pendingReschedule.requestedForId;
+  const otherPartyName = isLearner ? session.mentor : (session.learnerName || "Learner");
 
   let descriptionText = "";
-  if (session.status === "completed") {
+  if (pendingReschedule) {
+    descriptionText = isRescheduleRecipient
+      ? `${otherPartyName} proposed to reschedule this session to ${pendingReschedule.proposedDate} at ${pendingReschedule.proposedTime}. Please accept or decline below.`
+      : `You proposed to reschedule this session to ${pendingReschedule.proposedDate} at ${pendingReschedule.proposedTime}. Waiting for ${otherPartyName}'s response.`;
+  } else if (session.status === "completed") {
     descriptionText = isLearner
       ? `You learned ${session.topic} from ${session.mentor}.`
       : `You taught ${session.topic} to ${session.learnerName || "Learner"}.`;
@@ -101,6 +113,10 @@ const SessionDetailsHeader = ({ session }: SessionDetailsHeaderProps) => {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3.5 py-1 text-xs font-bold text-emerald-800">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
                 In Progress
+              </span>
+            ) : pendingReschedule ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3.5 py-1 text-xs font-bold text-amber-800 border border-amber-300">
+                {isRescheduleRecipient ? "Reschedule Proposed" : "Reschedule Sent"}
               </span>
             ) : isExpired || isInitialExpired ? (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">

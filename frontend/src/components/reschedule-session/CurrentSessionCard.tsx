@@ -12,12 +12,17 @@ type CurrentSessionCardProps = {
 };
 
 const CurrentSessionCard = ({ session }: CurrentSessionCardProps) => {
-  const { currentUser } = useSessions();
+  const { currentUser, getUserById } = useSessions();
   const isMentor = currentUser.id === session.mentorId;
+  const learnerObj = getUserById(session.learnerId);
+  const mentorObj = getUserById(session.mentorId);
+
+  const learnerName = session.learnerName || learnerObj?.name || "Student";
+  const mentorName = session.mentor || mentorObj?.name || "Mentor";
 
   const displayAvatar = isMentor
-    ? (session.learnerName || "Student").slice(0, 2).toUpperCase()
-    : (session.mentorAvatar || session.mentor.slice(0, 2).toUpperCase());
+    ? learnerName.slice(0, 2).toUpperCase()
+    : (session.mentorAvatar || mentorName.slice(0, 2).toUpperCase());
 
   return (
     <section className="rounded-2xl border border-violet-100 bg-white p-7 shadow-sm">
@@ -35,11 +40,11 @@ const CurrentSessionCard = ({ session }: CurrentSessionCardProps) => {
           <p className="text-sm text-slate-600">
             {isMentor ? (
               <>
-                Learner: <span className="font-medium text-slate-800">{session.learnerName || "Student"}</span>
+                Learner: <span className="font-medium text-slate-800">{learnerName}</span>
               </>
             ) : (
               <>
-                Mentor: <span className="font-medium text-slate-800">{session.mentor}</span> · {session.mentorRole}
+                Mentor: <span className="font-medium text-slate-800">{mentorName}</span> · {session.mentorRole}
               </>
             )}
           </p>

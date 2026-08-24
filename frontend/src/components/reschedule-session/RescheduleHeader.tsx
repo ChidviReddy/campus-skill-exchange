@@ -9,12 +9,15 @@ type RescheduleHeaderProps = {
 
 const RescheduleHeader = ({ session }: RescheduleHeaderProps) => {
   const navigate = useNavigate();
-  const { currentUser } = useSessions();
+  const { currentUser, getUserById } = useSessions();
 
   const isMentor = currentUser.id === session.mentorId;
+  const learnerObj = getUserById(session.learnerId);
+  const mentorObj = getUserById(session.mentorId);
+
   const otherPartyName = isMentor
-    ? session.learnerName || "Student"
-    : session.mentor;
+    ? session.learnerName || learnerObj?.name || "Student"
+    : session.mentor || mentorObj?.name || "Mentor";
 
   return (
     <section>
@@ -31,7 +34,7 @@ const RescheduleHeader = ({ session }: RescheduleHeaderProps) => {
       {/* Heading */}
       <div className="mt-6">
         <h1 className="text-3xl font-semibold tracking-tight text-[#211653]">
-          Reschedule Session
+          Reschedule your session with {otherPartyName}
         </h1>
         <p className="mt-2 text-base text-slate-500">
           Propose a new date and time for your session with{" "}

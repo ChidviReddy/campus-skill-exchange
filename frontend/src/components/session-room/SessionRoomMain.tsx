@@ -15,6 +15,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
 import type { Session } from "@/data/sessions";
+import { isSessionBeforeStart, formatStartTimeOnly } from "@/utils/sessionTime";
 
 type SessionRoomMainProps = {
   session: Session;
@@ -22,15 +23,26 @@ type SessionRoomMainProps = {
 
 const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
   const navigate = useNavigate();
-  const { currentUser, startSession, endSession } = useSessions();
+  const { currentUser, startSession, endSession, getUserById } = useSessions();
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [showChatNotice, setShowChatNotice] = useState(false);
 
   const isMentor = currentUser.id === session.mentorId;
-  const isStarted = !!session.isStarted;
+  const isStarted = session.status === "in_progress" || !!session.isStarted;
+  const isBeforeStart = isSessionBeforeStart(session.date, session.time);
+  const startTimeOnly = formatStartTimeOnly(session.time);
+
+  const learnerObj = getUserById(session.learnerId);
+  const mentorObj = getUserById(session.mentorId);
+  const learnerDisplayName = session.learnerName || learnerObj?.name || "Student Learner";
+  const mentorDisplayName = session.mentor || mentorObj?.name || "Mentor";
 
   const handleStartSession = () => {
+    if (isBeforeStart) {
+      alert(`Cannot start session before scheduled start time (${startTimeOnly}).`);
+      return;
+    }
     const res = startSession(session.id);
     if (!res.success && res.error) {
       alert(res.error);
@@ -52,7 +64,7 @@ const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
 
   const mentorInitials =
     session.mentorAvatar ||
-    session.mentor
+    mentorDisplayName
       .split(" ")
       .map((n) => n[0])
       .join("")
@@ -60,7 +72,7 @@ const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
       .slice(0, 2);
 
   const learnerInitials =
-    (session.learnerName || "Learner")
+    learnerDisplayName
       .split(" ")
       .map((n) => n[0])
       .join("")
@@ -68,52 +80,68 @@ const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
       .slice(0, 2);
 
   // -------------------------------------------------------------
-  // STATE 1: WAITING ROOM / READY TO START (session not started yet)
+  // STATE 1: WAITING ROOM / MENTOR START CONTROL (session not started yet)
   // -------------------------------------------------------------
   if (!isStarted) {
     if (isMentor) {
-      // MENTOR VIEW: Can click "Start Session"
+      // MENTOR VIEW: Mentor Start Control
       return (
         <section className="overflow-hidden rounded-3xl border border-violet-100 bg-slate-950 shadow-xl">
           <div className="relative flex min-h-[440px] flex-col items-center justify-center p-8 text-center sm:min-h-[500px]">
             {/* Status indicator */}
             <div className="absolute left-6 top-6 flex items-center gap-2 rounded-full bg-amber-500/20 px-4 py-1.5 text-xs font-semibold text-amber-300 backdrop-blur-md">
-              <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
-              Ready to Start Session
+              <span className={`h-2 w-2 rounded-full ${isBeforeStart ? "bg-amber-400" : "bg-emerald-400 animate-ping"}`} />
+              {isBeforeStart ? `Scheduled for ${startTimeOnly}` : "Ready to Start Session"}
             </div>
 
-            {/* Center: Start Session Card */}
+            {/* Center: Mentor Lobby / Start Session Card */}
             <div className="flex max-w-md flex-col items-center">
               <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-violet-600 text-3xl font-bold text-white shadow-xl ring-8 ring-violet-500/20 sm:h-28 sm:w-28">
                 {mentorInitials}
               </div>
 
               <h2 className="mt-5 text-2xl font-bold text-white">
-                Ready to mentor {session.learnerName || "your student"}?
+                {isBeforeStart
+                  ? `Session with ${learnerDisplayName}`
+                  : `Ready to mentor ${learnerDisplayName}?`}
               </h2>
 
               <p className="mt-2 text-sm text-slate-300 leading-relaxed">
                 Topic: <span className="font-semibold text-violet-300">{session.topic}</span>
               </p>
 
-              <p className="mt-1 text-xs text-slate-400">
-                Scheduled time has arrived. When you're ready, start the session to begin teaching and connect with the learner.
+              <p className="mt-2 text-xs text-slate-400 max-w-sm">
+                {isBeforeStart
+                  ? `Scheduled start time: ${session.date} at ${startTimeOnly}. As the mentor, you will be able to start the session once the scheduled time arrives.`
+                  : "Scheduled time has arrived. When you're ready, click Start Session to begin teaching and connect with the learner."}
               </p>
 
               <div className="mt-7 flex flex-wrap items-center justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={handleStartSession}
-                  className="cursor-pointer inline-flex items-center gap-2.5 rounded-2xl bg-emerald-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all duration-200 hover:bg-emerald-500 hover:scale-105 active:scale-95"
-                >
-                  <Play size={20} className="fill-white" />
-                  Start Session
-                </button>
+                {isBeforeStart ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="cursor-not-allowed inline-flex items-center gap-2.5 rounded-2xl bg-slate-800 border border-slate-700 px-8 py-4 text-sm font-bold text-slate-400 shadow-none opacity-80"
+                    title={`Start Session will be available at ${startTimeOnly}`}
+                  >
+                    <Play size={18} className="fill-slate-500 text-slate-500" />
+                    Start Session (Available at {startTimeOnly})
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleStartSession}
+                    className="cursor-pointer inline-flex items-center gap-2.5 rounded-2xl bg-emerald-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all duration-200 hover:bg-emerald-500 hover:scale-105 active:scale-95"
+                  >
+                    <Play size={20} className="fill-white" />
+                    Start Session
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Controls Bar for Testing Audio/Video before Starting */}
+          {/* Controls Bar for Mentor */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 bg-slate-900/90 px-6 py-4 backdrop-blur-md">
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="font-semibold text-slate-200">Role: Mentor</span>
@@ -144,14 +172,16 @@ const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
                 {isVideoOn ? <Video size={18} /> : <VideoOff size={18} />}
               </button>
 
-              <button
-                type="button"
-                onClick={handleStartSession}
-                className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
-              >
-                <Play size={16} className="fill-white" />
-                Start Session
-              </button>
+              {!isBeforeStart && (
+                <button
+                  type="button"
+                  onClick={handleStartSession}
+                  className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                >
+                  <Play size={16} className="fill-white" />
+                  Start Session
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -169,7 +199,7 @@ const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
       );
     }
 
-    // LEARNER VIEW: Waiting for mentor to start
+    // LEARNER VIEW: WAITING ROOM
     return (
       <section className="overflow-hidden rounded-3xl border border-violet-100 bg-slate-950 shadow-xl">
         <div className="relative flex min-h-[440px] flex-col items-center justify-center p-8 text-center sm:min-h-[500px]">
@@ -180,7 +210,7 @@ const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
           </div>
 
           {/* Center: Waiting on Mentor Animation */}
-          <div className="flex max-w-md flex-col items-center">
+          <div className="flex max-w-lg flex-col items-center">
             <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-violet-600 text-3xl font-bold text-white shadow-xl ring-8 ring-violet-500/20 sm:h-28 sm:w-28">
               {mentorInitials}
               <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-slate-950">
@@ -189,25 +219,45 @@ const SessionRoomMain = ({ session }: SessionRoomMainProps) => {
             </div>
 
             <h2 className="mt-6 text-2xl font-bold text-white">
-              Waiting for {session.mentor} to start the session.
+              You are in the waiting room.
             </h2>
 
             <p className="mt-2 text-sm leading-relaxed text-slate-300">
-              Topic: <span className="font-semibold text-violet-300">{session.topic}</span>
+              Your mentor can start the session at the scheduled time.
             </p>
 
-            <p className="mt-3 text-xs leading-relaxed text-slate-400">
-              Your mentor will start the live mentorship session momentarily. The room will automatically connect as soon as they start.
-            </p>
+            {/* Session Info Grid */}
+            <div className="mt-6 grid grid-cols-2 gap-3 w-full text-left text-xs bg-white/5 p-4 rounded-2xl border border-white/10">
+              <div>
+                <span className="text-slate-400 font-medium">Topic:</span>
+                <p className="font-semibold text-white truncate mt-0.5">{session.topic}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium">Mentor:</span>
+                <p className="font-semibold text-white truncate mt-0.5">{mentorDisplayName}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium">Scheduled Date:</span>
+                <p className="font-semibold text-white mt-0.5">{session.date}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium">Scheduled Time:</span>
+                <p className="font-semibold text-white mt-0.5">{session.time}</p>
+              </div>
+              <div className="col-span-2 border-t border-white/10 pt-2 mt-1 flex justify-between">
+                <span className="text-slate-400 font-medium">Duration:</span>
+                <p className="font-semibold text-violet-300">{session.duration}</p>
+              </div>
+            </div>
 
-            <div className="mt-7 flex items-center gap-2 rounded-2xl bg-white/5 border border-white/10 px-5 py-2.5 text-xs text-slate-300">
+            <div className="mt-5 flex items-center gap-2 rounded-2xl bg-white/5 border border-white/10 px-5 py-2.5 text-xs text-slate-300">
               <Sparkles size={16} className="text-violet-400" />
               <span>You're in queue. Feel free to check your mic & camera below.</span>
             </div>
           </div>
         </div>
 
-        {/* Controls Bar for Learner (Mic/Video Test + Leave Waiting Room) */}
+        {/* Controls Bar for Learner */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 bg-slate-900/90 px-6 py-4 backdrop-blur-md">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="font-semibold text-slate-200">Role: Learner</span>

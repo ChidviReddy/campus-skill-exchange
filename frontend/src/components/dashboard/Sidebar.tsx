@@ -12,7 +12,7 @@ import { NavLink } from "react-router-dom";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useSessions } from "@/hooks/useSessions";
 import { useChat } from "@/hooks/useChat";
-import { isInitialRequestExpired } from "@/utils/sessionTime";
+import { isInitialRequestExpired, isRescheduleRequestExpired } from "@/utils/sessionTime";
 
 const menuItems = [
   {
@@ -60,14 +60,23 @@ const menuItems = [
 const Sidebar = () => {
   const { unreadCount } = useNotifications();
   const { totalUnreadCount } = useChat();
-  const { sessions, currentUser } = useSessions();
+  const { sessions, currentUser, rescheduleRequests } = useSessions();
 
-  const pendingRequestsCount = sessions.filter(
+  const incomingInitialCount = sessions.filter(
     (s) =>
       s.mentorId === currentUser.id &&
       s.status === "pending" &&
       !isInitialRequestExpired(s)
   ).length;
+
+  const incomingRescheduleCount = rescheduleRequests.filter(
+    (r) =>
+      r.requestedForId === currentUser.id &&
+      r.status === "pending" &&
+      !isRescheduleRequestExpired(r)
+  ).length;
+
+  const pendingRequestsCount = incomingInitialCount + incomingRescheduleCount;
 
   const initials =
     currentUser.avatar ||

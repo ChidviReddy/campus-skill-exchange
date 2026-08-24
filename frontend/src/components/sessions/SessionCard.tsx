@@ -33,12 +33,16 @@ import UploadNotesModal from "../session-notes/UploadNotesModal";
 type SessionCardProps = Session;
 
 const statusStyles: Record<
-  "upcoming" | "pending" | "completed" | "cancelled" | "rejected",
+  "upcoming" | "in_progress" | "pending" | "completed" | "cancelled" | "rejected",
   { badge: string; text: string }
 > = {
   upcoming: {
     badge: "bg-green-100 text-green-700",
     text: "Upcoming",
+  },
+  in_progress: {
+    badge: "bg-emerald-100 text-emerald-800",
+    text: "In Progress",
   },
   pending: {
     badge: "bg-amber-100 text-amber-700",
@@ -77,6 +81,7 @@ const SessionCard = (session: SessionCardProps) => {
     getPendingRescheduleForSession,
     acceptRescheduleRequest,
     rejectRescheduleRequest,
+    cancelRescheduleRequest,
     getSessionPdfNote,
   } = useSessions();
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -176,7 +181,7 @@ const SessionCard = (session: SessionCardProps) => {
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
                 In Progress
               </span>
-            ) : isExpired || isInitialExpired ? (
+            ) : !pendingReschedule && (isExpired || isInitialExpired) ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-semibold text-slate-700">
                 <AlertCircle size={13} className="text-slate-500" />
                 Expired
@@ -318,7 +323,7 @@ const SessionCard = (session: SessionCardProps) => {
                   className="cursor-pointer inline-flex items-center gap-1 rounded-xl border border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                 >
                   <X size={14} />
-                  Decline
+                  Reject Reschedule
                 </button>
                 <button
                   type="button"
@@ -326,15 +331,25 @@ const SessionCard = (session: SessionCardProps) => {
                   className="cursor-pointer inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
                 >
                   <Check size={14} />
-                  Accept
+                  Accept Reschedule
                 </button>
               </div>
             )}
 
             {isRescheduleRequester && (
-              <span className="text-xs font-semibold text-amber-700 italic">
-                Waiting for response
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-semibold text-amber-700 italic">
+                  Waiting for response
+                </span>
+                <button
+                  type="button"
+                  onClick={() => cancelRescheduleRequest(pendingReschedule.id)}
+                  className="cursor-pointer inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                >
+                  <X size={13} />
+                  Cancel Request
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -357,33 +372,34 @@ const SessionCard = (session: SessionCardProps) => {
           </button>
         )}
 
-        {/* UPCOMING (not started and not expired) */}
-        {!isStarted && status === "upcoming" && !isExpired && (
+        {/* UPCOMING (not started and not expired, or has pending reschedule) */}
+        {!isStarted && status === "upcoming" && (!isExpired || Boolean(pendingReschedule)) && (
           <>
-            {isBeforeStart ? (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  navigate(`/session-room/${id}`);
-                }}
-                className="cursor-pointer rounded-xl bg-violet-100 px-6 py-3 font-semibold text-violet-700 transition-all hover:bg-violet-200"
-                title={`Session starts at ${startTimeDisplay}`}
-              >
-                Starts at {startTimeDisplay}
-              </button>
-            ) : isMentor ? (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  navigate(`/session-room/${id}`);
-                }}
-                className="cursor-pointer rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition-all hover:bg-emerald-700 shadow-sm"
-              >
-                Start Session
-              </button>
+            {isMentor ? (
+              isBeforeStart ? (
+                <button
+                  type="button"
+                  disabled
+                  onClick={(event) => event.stopPropagation()}
+                  className="cursor-not-allowed rounded-xl bg-slate-200 px-6 py-3 font-semibold text-slate-500 opacity-80"
+                  title={`Start Session will be available at ${startTimeDisplay}`}
+                >
+                  Start Session (Starts at {startTimeDisplay})
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/session-room/${id}`);
+                  }}
+                  className="cursor-pointer rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition-all hover:bg-emerald-700 shadow-sm"
+                >
+                  Start Session
+                </button>
+              )
             ) : (
+              /* LEARNER: Join Session is ALWAYS available (enters Waiting Room if before start) */
               <button
                 type="button"
                 onClick={(event) => {
@@ -396,16 +412,29 @@ const SessionCard = (session: SessionCardProps) => {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                navigate(`/reschedule-session/${id}`);
-              }}
-              className="cursor-pointer rounded-xl border border-violet-200 px-5 py-3 font-semibold text-violet-700 transition-all hover:bg-violet-50"
-            >
-              Reschedule
-            </button>
+            {!pendingReschedule ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  navigate(`/reschedule-session/${id}`);
+                }}
+                className="cursor-pointer rounded-xl border border-violet-200 px-5 py-3 font-semibold text-violet-700 transition-all hover:bg-violet-50"
+              >
+                Reschedule
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  navigate(`/session-details/${id}`);
+                }}
+                className="cursor-pointer rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 font-semibold text-amber-900 transition-all hover:bg-amber-100"
+              >
+                View Reschedule Proposal
+              </button>
+            )}
 
             <button
               type="button"

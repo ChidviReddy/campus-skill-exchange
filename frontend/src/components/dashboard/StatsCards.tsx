@@ -1,30 +1,36 @@
 import {
   Coins,
+  CalendarDays,
   GraduationCap,
   BookOpen,
-  Star,
   TrendingUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useWallet } from "@/hooks/useWallet";
 import { useSessions } from "@/hooks/useSessions";
+import { isSessionExpired } from "@/utils/sessionTime";
 
 const StatsCards = () => {
   const navigate = useNavigate();
-  const { balance } = useWallet();
-  const { currentUser, sessions, getUserRating } = useSessions();
+  const { balance, totalEarned, totalSpent } = useWallet();
+  const { currentUser, sessions, getPendingRescheduleForSession } = useSessions();
 
-  // Dynamic user calculations
-  const ratingData = getUserRating(currentUser.id);
+  // Upcoming valid unexpired sessions where current user is learner or mentor
+  const upcomingCount = sessions.filter(
+    (s) =>
+      (s.learnerId === currentUser.id || s.mentorId === currentUser.id) &&
+      ((s.status === "upcoming" &&
+        (!isSessionExpired(s) || Boolean(getPendingRescheduleForSession(s.id)))) ||
+        s.isStarted)
+  ).length;
 
-  // Sessions taught as mentor
-  const completedTaught = sessions.filter(
+  // Sessions taught as mentor (completed only)
+  const sessionsTaught = sessions.filter(
     (s) => s.mentorId === currentUser.id && s.status === "completed"
   ).length;
-  const totalTaught = Math.max(completedTaught, currentUser.sessionsCount || 0);
 
-  // Sessions learned as student
-  const completedLearned = sessions.filter(
+  // Sessions learned as learner (completed only)
+  const sessionsLearned = sessions.filter(
     (s) => s.learnerId === currentUser.id && s.status === "completed"
   ).length;
 
@@ -32,39 +38,39 @@ const StatsCards = () => {
     {
       title: "Credit Balance",
       value: String(balance),
-      subtitle: `${balance >= 5 ? "Ready for sessions" : "Low balance"}`,
+      subtitle: `${totalEarned > 0 || totalSpent > 0 ? `+${totalEarned} earned / -${totalSpent} spent` : (balance >= 5 ? "Ready for sessions" : "Low balance")}`,
       icon: Coins,
       color: "bg-violet-100 text-violet-700",
       route: "/wallet",
     },
     {
+      title: "Upcoming Sessions",
+      value: String(upcomingCount),
+      subtitle: `${upcomingCount > 0 ? `${upcomingCount} scheduled` : "No upcoming sessions"}`,
+      icon: CalendarDays,
+      color: "bg-fuchsia-100 text-fuchsia-700",
+      route: "/my-sessions",
+    },
+    {
       title: "Sessions Taught",
-      value: String(totalTaught),
-      subtitle: `${totalTaught > 0 ? "+10 credits per session" : "Share your skills"}`,
+      value: String(sessionsTaught),
+      subtitle: `${sessionsTaught > 0 ? `+${sessionsTaught * 10} credits earned` : "Share your skills"}`,
       icon: GraduationCap,
       color: "bg-blue-100 text-blue-700",
       route: "/my-sessions",
     },
     {
       title: "Sessions Learned",
-      value: String(completedLearned),
-      subtitle: `${completedLearned > 0 ? "Continuous learning" : "Start learning today"}`,
+      value: String(sessionsLearned),
+      subtitle: `${sessionsLearned > 0 ? `${sessionsLearned * 5} credits invested` : "Start learning today"}`,
       icon: BookOpen,
       color: "bg-emerald-100 text-emerald-700",
       route: "/my-sessions",
     },
-    {
-      title: "Average Rating",
-      value: ratingData.reviewCount > 0 ? ratingData.rating.toFixed(1) : (currentUser.rating ? currentUser.rating.toFixed(1) : "5.0"),
-      subtitle: `Based on ${ratingData.reviewCount || currentUser.reviewCount || 0} reviews`,
-      icon: Star,
-      color: "bg-amber-100 text-amber-700",
-      route: `/profile/${currentUser.id}`,
-    },
   ];
 
   return (
-    <section className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+    <section className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
       {stats.map((stat) => {
         const Icon = stat.icon;
 

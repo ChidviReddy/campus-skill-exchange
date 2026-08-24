@@ -8,11 +8,20 @@ import {
 } from "lucide-react";
 import type { Session } from "@/data/sessions";
 
+import { useSessions } from "@/hooks/useSessions";
+
 type SessionRoomInfoProps = {
   session: Session;
 };
 
 const SessionRoomInfo = ({ session }: SessionRoomInfoProps) => {
+  const { currentUser, getUserById } = useSessions();
+  const isMentor = currentUser.id === session.mentorId;
+  const learnerObj = getUserById(session.learnerId);
+  const mentorObj = getUserById(session.mentorId);
+  const learnerDisplayName = session.learnerName || learnerObj?.name || "Student";
+  const mentorDisplayName = session.mentor || mentorObj?.name || "Mentor";
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {/* Session Details */}
@@ -83,27 +92,27 @@ const SessionRoomInfo = ({ session }: SessionRoomInfoProps) => {
         </div>
       </section>
 
-      {/* Mentor & Learning Goal */}
+      {/* Participant & Learning Goal */}
       <section className="rounded-2xl border border-violet-100 bg-white p-7 shadow-sm">
         <h2 className="text-lg font-semibold text-[#211653]">
-          Mentor & Goal
+          {isMentor ? "Learner & Goal" : "Mentor & Goal"}
         </h2>
 
-        {/* Mentor summary */}
+        {/* Counterpart summary */}
         <div className="mt-5 flex items-center gap-4 rounded-xl bg-violet-50/60 p-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-600 font-bold text-white">
-            {session.mentorAvatar ||
-              session.mentor
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()
-                .slice(0, 2)}
+            {isMentor
+              ? learnerDisplayName.slice(0, 2).toUpperCase()
+              : (session.mentorAvatar || mentorDisplayName.slice(0, 2).toUpperCase())}
           </div>
           <div>
-            <h3 className="font-semibold text-[#211653]">{session.mentor}</h3>
+            <h3 className="font-semibold text-[#211653]">
+              {isMentor ? learnerDisplayName : mentorDisplayName}
+            </h3>
             <p className="text-xs text-slate-500">
-              {session.mentorRole} · Teaching: {session.teachingSkill}
+              {isMentor
+                ? "Enrolled Learner · Peer Mentorship"
+                : `${session.mentorRole} · Teaching: ${session.teachingSkill}`}
             </p>
           </div>
         </div>
@@ -115,7 +124,7 @@ const SessionRoomInfo = ({ session }: SessionRoomInfoProps) => {
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Your Learning Goal
+              {isMentor ? "Learner's Goal" : "Your Learning Goal"}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-slate-700">
               {session.learnerGoal}

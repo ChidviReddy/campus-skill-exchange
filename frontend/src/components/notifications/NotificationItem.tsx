@@ -4,9 +4,12 @@ import {
   Coins,
   MessageCircle,
   CalendarClock,
+  Check,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useSessions } from "@/hooks/useSessions";
 import type { Notification, NotificationType } from "@/data/notifications";
 
 type NotificationItemProps = {
@@ -55,10 +58,33 @@ const NotificationItem = ({
 }: NotificationItemProps) => {
   const navigate = useNavigate();
   const { markAsRead } = useNotifications();
+  const {
+    currentUser,
+    getPendingRescheduleForSession,
+    acceptRescheduleRequest,
+    rejectRescheduleRequest,
+    getSessionById,
+    acceptRequest,
+    rejectRequest,
+  } = useSessions();
 
   const config =
     notificationConfig[notification.type] || notificationConfig.system;
   const Icon = config.icon;
+
+  const pendingReschedule = notification.relatedId
+    ? getPendingRescheduleForSession(notification.relatedId)
+    : undefined;
+  const isRescheduleRecipient =
+    pendingReschedule && currentUser.id === pendingReschedule.requestedForId;
+
+  const targetSession = notification.relatedId
+    ? getSessionById(notification.relatedId)
+    : undefined;
+  const isInitialPendingForMentor =
+    targetSession &&
+    targetSession.status === "pending" &&
+    targetSession.mentorId === currentUser.id;
 
   const handleClick = () => {
     if (!notification.isRead) {
@@ -72,13 +98,13 @@ const NotificationItem = ({
   return (
     <div
       onClick={handleClick}
-      className={`cursor-pointer flex items-center gap-5 px-7 py-5 transition-colors duration-200 hover:bg-violet-50/60 ${
+      className={`cursor-pointer flex items-start gap-5 px-7 py-5 transition-colors duration-200 hover:bg-violet-50/60 ${
         !notification.isRead ? "bg-violet-50/30" : ""
       } ${!isLast ? "border-b border-slate-100" : ""}`}
     >
       {/* Notification Icon */}
       <div
-        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${config.background} shadow-xs`}
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${config.background} shadow-xs mt-0.5`}
       >
         <Icon size={22} strokeWidth={2} className={config.iconColor} />
       </div>
@@ -99,7 +125,87 @@ const NotificationItem = ({
           {notification.message}
         </p>
 
-        <p className="mt-1 text-xs text-slate-400">
+        {/* Action Controls for Pending Reschedule Proposal */}
+        {isRescheduleRecipient && pendingReschedule && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="mt-3 rounded-xl border border-amber-200 bg-amber-50/90 p-3.5 shadow-xs"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs">
+                <span className="font-bold text-amber-950">Proposed New Schedule:</span>{" "}
+                <span className="font-semibold text-amber-900">
+                  {pendingReschedule.proposedDate} at {pendingReschedule.proposedTime}
+                </span>
+              </div>
+              {pendingReschedule.reason && (
+                <p className="w-full text-[11px] italic text-amber-800">
+                  Note: "{pendingReschedule.reason}"
+                </p>
+              )}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  markAsRead(notification.id);
+                  acceptRescheduleRequest(pendingReschedule.id);
+                }}
+                className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 hover:scale-105"
+              >
+                <Check size={14} />
+                Accept Request
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  markAsRead(notification.id);
+                  rejectRescheduleRequest(pendingReschedule.id);
+                }}
+                className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 hover:border-red-300"
+              >
+                <X size={14} />
+                Reject Request
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Action Controls for Initial Mentorship Request */}
+        {!pendingReschedule && isInitialPendingForMentor && targetSession && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="mt-3 rounded-xl border border-violet-200 bg-violet-50/70 p-3 shadow-xs flex items-center gap-2.5"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                markAsRead(notification.id);
+                acceptRequest(targetSession.id);
+              }}
+              className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+            >
+              <Check size={14} />
+              Accept Request
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                markAsRead(notification.id);
+                rejectRequest(targetSession.id);
+              }}
+              className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+            >
+              <X size={14} />
+              Reject Request
+            </button>
+          </div>
+        )}
+
+        <p className="mt-1.5 text-xs text-slate-400">
           {notification.timestamp}
         </p>
       </div>
@@ -107,7 +213,7 @@ const NotificationItem = ({
       {/* Unread Indicator */}
       {!notification.isRead && (
         <span
-          className="h-3 w-3 shrink-0 rounded-full bg-violet-600 shadow-xs"
+          className="h-3 w-3 shrink-0 rounded-full bg-violet-600 shadow-xs mt-1"
           aria-label="Unread notification"
         />
       )}

@@ -18,6 +18,7 @@ import {
   getAvailableSlotsForDate,
   getDayOfWeekFromDate,
   formatTime24to12,
+  getSessionStartDateTime,
 } from "@/utils/sessionTime";
 
 type RescheduleFormProps = {
@@ -78,9 +79,12 @@ const RescheduleForm = ({ session }: RescheduleFormProps) => {
   } = useSessions();
 
   const isMentor = currentUser.id === session.mentorId;
+  const learnerObj = getUserById(session.learnerId);
+  const mentorObj = getUserById(session.mentorId);
+
   const otherPartyName = isMentor
-    ? session.learnerName || "Student"
-    : session.mentor;
+    ? session.learnerName || learnerObj?.name || "Student"
+    : session.mentor || mentorObj?.name || "Mentor";
 
   // The mentor whose calendar availability is checked for learner requests
   const mentor = getUserById(session.mentorId);
@@ -142,6 +146,13 @@ const RescheduleForm = ({ session }: RescheduleFormProps) => {
 
     const formattedDate = formatDateString(date);
     const formattedTime = formatTimeString(time, session.duration);
+
+    // Validation 2b: Ensure datetime is in future
+    const proposedStartDt = getSessionStartDateTime(formattedDate, formattedTime);
+    if (!proposedStartDt || proposedStartDt.getTime() <= Date.now()) {
+      setError("The proposed date and time must be in the future.");
+      return;
+    }
 
     // Validation 3: Check if same as current
     if (formattedDate === session.date && formattedTime === session.time) {

@@ -14,7 +14,13 @@ import RejectRequestModal from "./RejectRequestModal";
 type FilterTab = "pending" | "upcoming" | "all";
 
 const MentorRequestsLayout = () => {
-  const { sessions, acceptRequest, rejectRequest, currentUser } = useSessions();
+  const {
+    sessions,
+    acceptRequest,
+    rejectRequest,
+    currentUser,
+    getPendingRescheduleForSession,
+  } = useSessions();
   const [activeTab, setActiveTab] = useState<FilterTab>("pending");
   const [acceptingSession, setAcceptingSession] = useState<Session | null>(null);
   const [rejectingSession, setRejectingSession] = useState<Session | null>(null);
@@ -47,9 +53,9 @@ const MentorRequestsLayout = () => {
         (s) =>
           (s.mentorId === currentUser.id || s.learnerId === currentUser.id) &&
           s.status === "upcoming" &&
-          !isSessionExpired(s)
+          (!isSessionExpired(s) || Boolean(getPendingRescheduleForSession(s.id)))
       ),
-    [sessions, currentUser.id]
+    [sessions, currentUser.id, getPendingRescheduleForSession]
   );
 
   const displayedSessions = useMemo(() => {

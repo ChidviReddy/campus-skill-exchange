@@ -4,17 +4,23 @@ import type { Session } from "@/data/sessions";
 
 import { useSessions } from "@/hooks/useSessions";
 
+import { isSessionBeforeStart } from "@/utils/sessionTime";
+
 type SessionRoomHeaderProps = {
   session: Session;
 };
 
 const statusStyles: Record<
-  "upcoming" | "pending" | "completed" | "cancelled" | "rejected",
+  "upcoming" | "in_progress" | "pending" | "completed" | "cancelled" | "rejected",
   { badge: string; text: string }
 > = {
   upcoming: {
     badge: "bg-green-100 text-green-700",
     text: "Upcoming",
+  },
+  in_progress: {
+    badge: "bg-emerald-100 text-emerald-700 border border-emerald-200 animate-pulse",
+    text: "● Live Session In Progress",
   },
   pending: {
     badge: "bg-amber-100 text-amber-700",
@@ -36,20 +42,31 @@ const statusStyles: Record<
 
 const SessionRoomHeader = ({ session }: SessionRoomHeaderProps) => {
   const navigate = useNavigate();
-  const { currentUser } = useSessions();
+  const { currentUser, getUserById } = useSessions();
   const isMentor = currentUser.id === session.mentorId;
-  const isStarted = !!session.isStarted;
+  const isStarted = session.status === "in_progress" || !!session.isStarted;
+  const isBeforeStart = isSessionBeforeStart(session.date, session.time);
+
+  const learnerObj = getUserById(session.learnerId);
+  const mentorObj = getUserById(session.mentorId);
+  const learnerDisplayName = session.learnerName || learnerObj?.name || "Student";
+  const mentorDisplayName = session.mentor || mentorObj?.name || "Mentor";
 
   let badgeClass = statusStyles[session.status]?.badge || "bg-violet-100 text-violet-700";
   let badgeText = statusStyles[session.status]?.text || session.status;
 
-  if (session.status === "upcoming") {
-    if (isStarted) {
-      badgeClass = "bg-emerald-100 text-emerald-700 border border-emerald-200 animate-pulse";
-      badgeText = "● Live Session In Progress";
+  if (isStarted) {
+    badgeClass = "bg-emerald-100 text-emerald-700 border border-emerald-200 animate-pulse";
+    badgeText = "● Live Session In Progress";
+  } else if (session.status === "upcoming") {
+    if (isMentor) {
+      badgeClass = isBeforeStart
+        ? "bg-amber-100 text-amber-800 border border-amber-200"
+        : "bg-emerald-100 text-emerald-800 border border-emerald-200";
+      badgeText = isBeforeStart ? "Scheduled" : "Ready to Start";
     } else {
-      badgeClass = isMentor ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-violet-100 text-violet-700 border border-violet-200";
-      badgeText = isMentor ? "Ready to Start" : "Waiting Room";
+      badgeClass = "bg-violet-100 text-violet-700 border border-violet-200";
+      badgeText = "Waiting Room";
     }
   }
 
@@ -95,7 +112,7 @@ const SessionRoomHeader = ({ session }: SessionRoomHeaderProps) => {
           </div>
 
           <p className="mt-2 text-base text-slate-500">
-            Mentor: <span className="font-medium text-slate-700">{session.mentor}</span> ({session.mentorRole}) · Learner: <span className="font-medium text-slate-700">{session.learnerName || "Student"}</span>
+            Mentor: <span className="font-medium text-slate-700">{mentorDisplayName}</span> ({session.mentorRole}) · Learner: <span className="font-medium text-slate-700">{learnerDisplayName}</span>
           </p>
         </div>
 

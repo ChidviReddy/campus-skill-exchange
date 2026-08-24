@@ -208,25 +208,7 @@ export const checkSessionAccess = (
     };
   }
 
-  // 4. In-progress check: if mentor already started session, allow access
-  if (session.isStarted) {
-    return {
-      allowed: true,
-      status: "ALLOWED",
-    };
-  }
-
-  // 5. Scheduled Start Time check
-  if (isSessionBeforeStart(session.date, session.time, now)) {
-    const startTimeStr = formatStartTimeOnly(session.time);
-    return {
-      allowed: false,
-      status: "BEFORE_START",
-      title: "Session hasn't started yet",
-      message: `Your session starts on ${session.date} at ${startTimeStr}.`,
-    };
-  }
-
+  // 4. In-progress or upcoming (waiting room for learner / start lobby for mentor)
   return {
     allowed: true,
     status: "ALLOWED",
