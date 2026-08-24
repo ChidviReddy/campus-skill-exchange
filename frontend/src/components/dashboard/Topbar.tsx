@@ -5,7 +5,17 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useWallet } from "@/hooks/useWallet";
 import { useSessions } from "@/hooks/useSessions";
 
-const Topbar = () => {
+type TopbarProps = {
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
+};
+
+const Topbar = ({
+  searchValue,
+  onSearchChange,
+  searchPlaceholder = "Search for a skill or teacher",
+}: TopbarProps = {}) => {
   const navigate = useNavigate();
   const { unreadCount } = useNotifications();
   const { balance } = useWallet();
@@ -32,7 +42,9 @@ const Topbar = () => {
 
         <input
           type="text"
-          placeholder="Search for a skill or teacher"
+          value={searchValue !== undefined ? searchValue : undefined}
+          onChange={(e) => onSearchChange?.(e.target.value)}
+          placeholder={searchPlaceholder}
           className="w-full rounded-xl border border-violet-100 bg-white py-3 pl-11 pr-4 text-sm shadow-sm outline-none transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
         />
       </div>
