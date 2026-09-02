@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/context/AuthContext";
 import {
   isValidEmailFormat,
   isVitEmail,
@@ -16,6 +17,7 @@ interface FormErrors {
   name?: string;
   email?: string;
   password?: string;
+  general?: string;
 }
 
 export default function SignupForm() {
@@ -24,7 +26,10 @@ export default function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
-  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { signup } = useAuth();
+  const navigate = useNavigate();
 
   function validate(): FormErrors {
     const newErrors: FormErrors = {};
@@ -44,28 +49,51 @@ export default function SignupForm() {
 
     if (!password) {
       newErrors.password = "Password is required.";
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters long.";
     }
 
     return newErrors;
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSuccessMessage("");
+    setErrors({});
 
     const validationErrors = validate();
-    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
 
-    if (Object.keys(validationErrors).length === 0) {
-      // Frontend validation passed — backend auth to be connected in next phase.
-      setSuccessMessage(
-        "Authentication backend will be connected in the next phase."
-      );
+    setIsSubmitting(true);
+    try {
+      await signup(name, email, password);
+      // Account created with +40 credits -> redirect to onboarding step 1
+      navigate("/profile-setup");
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "An error occurred during account creation. Please try again.";
+      setErrors({ general: message });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+      {/* General Error Banner */}
+      {errors.general && (
+        <div
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          role="alert"
+        >
+          {errors.general}
+        </div>
+      )}
+
       {/* Full Name */}
       <div className="space-y-2">
         <Label htmlFor="signup-name">Full Name</Label>
@@ -77,7 +105,7 @@ export default function SignupForm() {
           onChange={(e) => {
             setName(e.target.value);
             if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
-            if (successMessage) setSuccessMessage("");
+            if (errors.general) setErrors((prev) => ({ ...prev, general: undefined }));
           }}
           aria-describedby={errors.name ? "signup-name-error" : undefined}
           aria-invalid={!!errors.name}
@@ -105,7 +133,8 @@ export default function SignupForm() {
             setEmail(e.target.value);
             if (errors.email)
               setErrors((prev) => ({ ...prev, email: undefined }));
-            if (successMessage) setSuccessMessage("");
+            if (errors.general)
+              setErrors((prev) => ({ ...prev, general: undefined }));
           }}
           aria-describedby={errors.email ? "signup-email-error" : undefined}
           aria-invalid={!!errors.email}
@@ -129,14 +158,15 @@ export default function SignupForm() {
           <Input
             id="signup-password"
             type={showPassword ? "text" : "password"}
-            placeholder="Create a password"
+            placeholder="Create a password (min. 6 characters)"
             className="pr-10"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
               if (errors.password)
                 setErrors((prev) => ({ ...prev, password: undefined }));
-              if (successMessage) setSuccessMessage("");
+              if (errors.general)
+                setErrors((prev) => ({ ...prev, general: undefined }));
             }}
             aria-describedby={
               errors.password ? "signup-password-error" : undefined
@@ -169,21 +199,12 @@ export default function SignupForm() {
         )}
       </div>
 
-      {/* Success / info message */}
-      {successMessage && (
-        <div
-          className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-700"
-          role="status"
-        >
-          {successMessage}
-        </div>
-      )}
-
       <Button
         type="submit"
-        className="h-12 w-full bg-violet-600 hover:bg-violet-700"
+        disabled={isSubmitting}
+        className="h-12 w-full bg-violet-600 hover:bg-violet-700 cursor-pointer"
       >
-        Create Account
+        {isSubmitting ? "Creating Account..." : "Create Account"}
       </Button>
 
       <p className="pt-2 text-center text-gray-600">

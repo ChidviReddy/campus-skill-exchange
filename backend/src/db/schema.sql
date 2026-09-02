@@ -28,15 +28,26 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(150) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255),
+    google_id VARCHAR(255) UNIQUE,
     role VARCHAR(50) NOT NULL DEFAULT 'student',
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    registration_number VARCHAR(100),
+    university VARCHAR(100) DEFAULT 'VIT Chennai',
     year_of_study VARCHAR(50),
+    phone_number VARCHAR(50),
     avatar TEXT,
     bio TEXT,
     experience_years VARCHAR(50),
     projects_built VARCHAR(50),
     languages VARCHAR(255),
     location VARCHAR(150),
+    availability_preference VARCHAR(100),
+    preferred_time VARCHAR(100),
+    github_url TEXT,
+    linkedin_url TEXT,
+    portfolio_url TEXT,
+    onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    onboarding_step INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -248,7 +259,7 @@ CREATE TABLE IF NOT EXISTS session_notes (
 CREATE TABLE IF NOT EXISTS wallets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    balance INTEGER NOT NULL DEFAULT 35 CHECK (balance >= 0),
+    balance INTEGER NOT NULL DEFAULT 40 CHECK (balance >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -264,7 +275,7 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
     session_id UUID REFERENCES sessions(id) ON DELETE SET NULL,
     amount INTEGER NOT NULL,
     transaction_type VARCHAR(50) NOT NULL CHECK (
-        transaction_type IN ('SESSION_TAUGHT', 'SESSION_LEARNED', 'INITIAL_BONUS', 'REFUND', 'ADJUSTMENT')
+        transaction_type IN ('SESSION_TAUGHT', 'SESSION_LEARNED', 'INITIAL_SIGNUP_BONUS', 'INITIAL_BONUS', 'REFUND', 'ADJUSTMENT')
     ),
     description VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

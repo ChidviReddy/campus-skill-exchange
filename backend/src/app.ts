@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import healthRoutes from "./routes/healthRoutes";
+import authRoutes from "./modules/auth/authRoutes";
+import onboardingRoutes from "./modules/onboarding/onboardingRoutes";
 import { errorMiddleware, notFoundMiddleware } from "./middleware/errorMiddleware";
 
 // Load environment variables as early as possible
@@ -30,9 +32,10 @@ app.use(
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.use("/api/health", healthRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/onboarding", onboardingRoutes);
 
 // Future route groups will be added here as new phases are implemented:
-//   app.use("/api/auth",          authRoutes);
 //   app.use("/api/users",         userRoutes);
 //   app.use("/api/skills",        skillRoutes);
 //   app.use("/api/sessions",      sessionRoutes);

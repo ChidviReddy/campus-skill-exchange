@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/context/AuthContext";
 import {
   isValidEmailFormat,
   isVitEmail,
@@ -15,6 +16,7 @@ import {
 interface FormErrors {
   email?: string;
   password?: string;
+  general?: string;
 }
 
 export default function LoginForm() {
@@ -22,7 +24,10 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
-  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   function validate(): FormErrors {
     const newErrors: FormErrors = {};
@@ -43,23 +48,50 @@ export default function LoginForm() {
     return newErrors;
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSuccessMessage("");
+    setErrors({});
 
     const validationErrors = validate();
-    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
 
-    if (Object.keys(validationErrors).length === 0) {
-      // Frontend validation passed — backend auth to be connected in next phase.
-      setSuccessMessage(
-        "Authentication backend will be connected in the next phase."
-      );
+    setIsSubmitting(true);
+    try {
+      const user = await login(email, password);
+
+      if (!user.onboardingCompleted) {
+        // Incomplete onboarding -> resume at profile setup
+        navigate("/profile-setup");
+      } else {
+        // Complete onboarding -> redirect to dashboard
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Invalid VIT email or password. Please try again.";
+      setErrors({ general: message });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+      {/* General Error Banner */}
+      {errors.general && (
+        <div
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          role="alert"
+        >
+          {errors.general}
+        </div>
+      )}
+
       {/* Email */}
       <div className="space-y-2">
         <Label htmlFor="login-email">Email</Label>
@@ -71,7 +103,7 @@ export default function LoginForm() {
           onChange={(e) => {
             setEmail(e.target.value);
             if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
-            if (successMessage) setSuccessMessage("");
+            if (errors.general) setErrors((prev) => ({ ...prev, general: undefined }));
           }}
           aria-describedby={errors.email ? "login-email-error" : undefined}
           aria-invalid={!!errors.email}
@@ -111,7 +143,8 @@ export default function LoginForm() {
               setPassword(e.target.value);
               if (errors.password)
                 setErrors((prev) => ({ ...prev, password: undefined }));
-              if (successMessage) setSuccessMessage("");
+              if (errors.general)
+                setErrors((prev) => ({ ...prev, general: undefined }));
             }}
             aria-describedby={
               errors.password ? "login-password-error" : undefined
@@ -144,21 +177,12 @@ export default function LoginForm() {
         )}
       </div>
 
-      {/* Success / info message */}
-      {successMessage && (
-        <div
-          className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-700"
-          role="status"
-        >
-          {successMessage}
-        </div>
-      )}
-
       <Button
         type="submit"
-        className="h-12 w-full bg-violet-600 text-white hover:bg-violet-700"
+        disabled={isSubmitting}
+        className="h-12 w-full bg-violet-600 text-white hover:bg-violet-700 cursor-pointer"
       >
-        Sign In
+        {isSubmitting ? "Signing In..." : "Sign In"}
       </Button>
 
       <p className="pt-2 text-center text-gray-600">

@@ -1,3 +1,4 @@
+import { AuthProvider } from "@/context/AuthContext";
 import { SessionProvider } from "@/context/SessionContext";
 import { ChatProvider } from "@/context/ChatContext";
 import { NotificationProvider } from "@/context/NotificationContext";
@@ -6,14 +7,16 @@ import AppRoutes from "@/routes/AppRoutes";
 
 export default function App() {
   return (
-    <WalletProvider>
-      <NotificationProvider>
-        <SessionProvider>
-          <ChatProvider>
-            <AppRoutes />
-          </ChatProvider>
-        </SessionProvider>
-      </NotificationProvider>
-    </WalletProvider>
+    <AuthProvider>
+      <WalletProvider>
+        <NotificationProvider>
+          <SessionProvider>
+            <ChatProvider>
+              <AppRoutes />
+            </ChatProvider>
+          </SessionProvider>
+        </NotificationProvider>
+      </WalletProvider>
+    </AuthProvider>
   );
 }

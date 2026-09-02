@@ -1,11 +1,12 @@
-import { createContext, useState } from "react";
+import { createContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { sessions as initialSessions } from "@/data/sessions";
 import type { Session, RescheduleRequest, SessionPdfNote } from "@/data/sessions";
 import { useWallet } from "@/hooks/useWallet";
+import { useAuth } from "@/context/AuthContext";
 
 import { useNotifications } from "@/hooks/useNotifications";
-import { users as initialUsers } from "@/data/mentors";
+import { users as initialUsers, createDefaultAvailability } from "@/data/mentors";
 import type { User } from "@/data/mentors";
 
 import {
@@ -158,8 +159,59 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [usersState, setUsersState] = useState<User[]>(initialUsers);
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
   const [currentUserRole, setCurrentUserRole] = useState<"mentor" | "learner">("mentor");
+  const { user: authUser } = useAuth();
   const { completeSessionAndProcessCredits } = useWallet();
   const { addNotification } = useNotifications();
+
+  // Synchronize real authenticated user when logged in
+  useEffect(() => {
+    if (authUser) {
+      setUsersState((prev) => {
+        const existing = prev.find((u) => u.id === authUser.id || u.email === authUser.email);
+        if (existing) {
+          const updated = {
+            ...existing,
+            name: authUser.fullName || existing.name,
+            email: authUser.email,
+            credits: authUser.credits ?? existing.credits,
+            avatar: authUser.avatar || existing.avatar,
+          };
+          setCurrentUser(updated);
+          return prev.map((u) => (u.id === existing.id ? updated : u));
+        } else {
+          const newUser: User = {
+            id: authUser.id,
+            name: authUser.fullName,
+            email: authUser.email,
+            role: authUser.role || "student",
+            department: authUser.department || "Computer Science",
+            year: "3rd Year",
+            rating: 5.0,
+            reviewCount: 0,
+            credits: authUser.credits ?? 40,
+            sessionsCount: 0,
+            avatar:
+              authUser.avatar ||
+              authUser.fullName
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2),
+            teachingSkill: "Web Development",
+            teaches: ["React", "JavaScript"],
+            learns: ["Machine Learning"],
+            bio: "VIT Student passionate about peer learning on SkillSwap.",
+            experienceYears: "1 Year",
+            projectsBuilt: "3+",
+            languages: "English",
+            availability: createDefaultAvailability(),
+          };
+          setCurrentUser(newUser);
+          return [newUser, ...prev];
+        }
+      });
+    }
+  }, [authUser]);
 
   const getUserById = (id: string | undefined): User | undefined => {
     if (!id) return undefined;

@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { FcGoogle } from "react-icons/fc";
+import { useAuth } from "@/context/AuthContext";
+import GoogleAuthModal from "./GoogleAuthModal";
 
 interface SocialLoginButtonProps {
   onClick?: () => void;
@@ -11,14 +14,47 @@ export default function SocialLoginButton({
   onClick,
   disabled = false,
 }: SocialLoginButtonProps) {
-  const [showComingSoon, setShowComingSoon] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
 
   function handleClick() {
-    // Show inline coming-soon message — real Google OAuth in next auth phase.
-    setShowComingSoon(true);
-    // Auto-hide after 4 seconds
-    setTimeout(() => setShowComingSoon(false), 4000);
+    setAuthError(null);
+    setIsModalOpen(true);
     onClick?.();
+  }
+
+  async function handleGoogleSuccess(googleData: {
+    email: string;
+    name: string;
+    avatar?: string;
+  }) {
+    setIsLoading(true);
+    setAuthError(null);
+    try {
+      const user = await loginWithGoogle(
+        googleData.email,
+        googleData.name,
+        googleData.avatar
+      );
+      setIsModalOpen(false);
+
+      if (!user.onboardingCompleted) {
+        navigate("/profile-setup");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Google authentication failed. Please use your VIT email.";
+      setAuthError(message);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -26,23 +62,29 @@ export default function SocialLoginButton({
       <Button
         type="button"
         variant="outline"
-        className="w-full h-12 text-base font-medium"
+        className="w-full h-12 text-base font-medium cursor-pointer"
         onClick={handleClick}
-        disabled={disabled}
+        disabled={disabled || isLoading}
       >
         <FcGoogle className="mr-3 h-5 w-5" />
-        Continue with Google
+        {isLoading ? "Signing in with Google..." : "Continue with Google"}
       </Button>
 
-      {showComingSoon && (
+      {authError && (
         <p
-          className="text-center text-sm text-violet-600"
-          role="status"
+          className="text-center text-sm text-red-600"
+          role="alert"
           aria-live="polite"
         >
-          Google authentication will be available soon.
+          {authError}
         </p>
       )}
+
+      <GoogleAuthModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleGoogleSuccess}
+      />
     </div>
   );
 }
