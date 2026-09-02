@@ -1,0 +1,58 @@
+import fs from "fs";
+import path from "path";
+import dotenv from "dotenv";
+import pool from "../config/db";
+
+dotenv.config();
+
+/**
+ * Migration runner: reads schema.sql and applies it against PostgreSQL
+ */
+export async function runMigrations(): Promise<void> {
+  const schemaPath = path.join(__dirname, "schema.sql");
+  console.log(`\n📦  Loading schema from: ${schemaPath}`);
+
+  if (!fs.existsSync(schemaPath)) {
+    throw new Error(`Schema file not found at ${schemaPath}`);
+  }
+
+  const sql = fs.readFileSync(schemaPath, "utf-8");
+
+  console.log("🚀  Applying database schema migration...");
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query(sql);
+    await client.query("COMMIT");
+    console.log("✅  Database schema applied successfully!\n");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("❌  Migration failed:", (error as Error).message);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// Allow direct CLI execution: ts-node src/db/migrate.ts
+if (require.main === module) {
+  runMigrations()
+    .then(async () => {
+      // Query created tables to provide instant visual verification
+      const res = await pool.query<{ table_name: string }>(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name;
+      `);
+      console.log("📋  Public tables in database:");
+      res.rows.forEach((row, i) => {
+        console.log(`   ${i + 1}. ${row.table_name}`);
+      });
+      process.exit(0);
+    })
+    .catch(() => {
+      process.exit(1);
+    });
+}

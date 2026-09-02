@@ -48,11 +48,12 @@ DB_NAME=skillswap
 
 ---
 
-## 3 — Install dependencies
+## 3 — Install dependencies & Run Migrations
 
 ```bash
 cd backend
 npm install
+npm run migrate
 ```
 
 ---
@@ -109,14 +110,27 @@ Expected response:
 
 ---
 
-## 6 — Common connection errors
+## 6 — Database Schema Architecture
 
-| Error | Likely cause |
-|-------|-------------|
-| `ECONNREFUSED` | PostgreSQL is not running |
-| `password authentication failed` | Wrong `DB_PASSWORD` in `.env` |
-| `database "skillswap" does not exist` | Run `CREATE DATABASE skillswap;` |
-| `role "postgres" does not exist` | Use your actual PostgreSQL username |
+The PostgreSQL relational schema comprises 15 tables designed for all campus skill-exchange features:
+
+| Table | Purpose |
+|-------|---------|
+| `departments` | Academic departments (CSE, ECE, IT, etc.) for filtering |
+| `users` | User accounts, profiles, department reference, and VIT authentication placeholder |
+| `skills` | Master skill catalog with categories and descriptions |
+| `user_skills` | Users teaching or learning specific skills (`TEACH` / `LEARN`) |
+| `user_availabilities` | Mentor weekly schedule availability slots |
+| `sessions` | Booked & confirmed mentorship sessions with status lifecycle |
+| `session_requests` | Session proposals from learners with auto-expiration tracking |
+| `reschedule_requests` | Reschedule proposals initiated by either mentor or learner |
+| `conversations` | 1-on-1 direct messaging threads |
+| `messages` | Chat messages with read receipts |
+| `notifications` | User-isolated notification stream (session, review, credit, message) |
+| `reviews` | Post-session learner reviews for mentors (1.0 - 5.0 rating) |
+| `session_notes` | PDF resource attachments and structured session takeaways |
+| `wallets` | User credit balance (starts at 35 credits) |
+| `credit_transactions` | Audit ledger (+10 teach, -5 learn, bonus, adjustment) |
 
 ---
 
@@ -129,6 +143,10 @@ backend/
 │   │   └── db.ts              ← PostgreSQL connection pool
 │   ├── controllers/
 │   │   └── healthController.ts
+│   ├── db/
+│   │   ├── schema.sql         ← Complete PostgreSQL relational DDL
+│   │   ├── migrate.ts         ← Database migration runner
+│   │   └── verifySchema.ts    ← Schema verification script
 │   ├── middleware/
 │   │   └── errorMiddleware.ts
 │   ├── routes/
@@ -151,6 +169,7 @@ backend/
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start with nodemon (auto-reload on file save) |
+| `npm run migrate` | Apply `schema.sql` migrations to PostgreSQL |
 | `npm start` | Run compiled production build |
 | `npm run build` | Compile TypeScript → `dist/` |
 | `npm run typecheck` | Type-check without emitting files |
