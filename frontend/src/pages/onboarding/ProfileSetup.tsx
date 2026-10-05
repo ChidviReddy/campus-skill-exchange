@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import OnboardingLayout from "@/components/onboarding/OnboardingLayout";
@@ -136,6 +136,44 @@ export default function ProfileSetup() {
     }
   };
 
+  const stepOneInitial = useMemo(() => ({
+    fullName: savedData?.fullName || user?.fullName || currentUser.name || "",
+    registrationNumber: savedData?.registrationNumber || "",
+    university: savedData?.university || "VIT Chennai",
+    department: savedData?.department || currentUser.department || "",
+    year: savedData?.year || currentUser.year || "",
+    phone: savedData?.phone || "",
+    bio: savedData?.bio || currentUser.bio || "",
+    avatar: savedData?.avatar || user?.avatar || currentUser.avatar || "",
+    github: savedData?.github || "",
+    linkedin: savedData?.linkedin || "",
+    portfolio: savedData?.portfolio || "",
+  }), [
+    savedData?.fullName,
+    savedData?.registrationNumber,
+    savedData?.university,
+    savedData?.department,
+    savedData?.year,
+    savedData?.phone,
+    savedData?.bio,
+    savedData?.avatar,
+    savedData?.github,
+    savedData?.linkedin,
+    savedData?.portfolio,
+    user?.fullName,
+    user?.avatar,
+    currentUser.name,
+    currentUser.department,
+    currentUser.year,
+    currentUser.bio,
+    currentUser.avatar,
+  ]);
+
+  const stepTwoInitial = useMemo(() => ({
+    teaches: savedData?.teaches?.length ? savedData.teaches : currentUser.teaches,
+    learns: savedData?.learns?.length ? savedData.learns : currentUser.learns,
+  }), [savedData?.teaches, savedData?.learns, currentUser.teaches, currentUser.learns]);
+
   const renderStep = () => {
     if (isLoading) {
       return (
@@ -150,19 +188,7 @@ export default function ProfileSetup() {
       case 1:
         return (
           <StepOne
-            initialData={{
-              fullName: savedData?.fullName || user?.fullName || currentUser.name || "",
-              registrationNumber: savedData?.registrationNumber || "",
-              university: savedData?.university || "VIT Chennai",
-              department: savedData?.department || currentUser.department || "",
-              year: savedData?.year || currentUser.year || "",
-              phone: savedData?.phone || "",
-              bio: savedData?.bio || currentUser.bio || "",
-              avatar: savedData?.avatar || user?.avatar || currentUser.avatar || "",
-              github: savedData?.github || "",
-              linkedin: savedData?.linkedin || "",
-              portfolio: savedData?.portfolio || "",
-            }}
+            initialData={stepOneInitial}
             onNext={handleStepOneNext}
           />
         );
@@ -170,10 +196,7 @@ export default function ProfileSetup() {
       case 2:
         return (
           <StepTwo
-            initialData={{
-              teaches: savedData?.teaches?.length ? savedData.teaches : currentUser.teaches,
-              learns: savedData?.learns?.length ? savedData.learns : currentUser.learns,
-            }}
+            initialData={stepTwoInitial}
             onBack={() => setCurrentStep(1)}
             onNext={handleStepTwoNext}
           />

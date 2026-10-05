@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Camera, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -58,8 +58,10 @@ export default function StepOne({ initialData, onNext }: StepOneProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hasInitializedRef = useRef(false);
+
   useEffect(() => {
-    if (initialData) {
+    if (!hasInitializedRef.current && initialData) {
       if (initialData.fullName) setFullName(initialData.fullName);
       if (initialData.registrationNumber) setRegistrationNumber(initialData.registrationNumber);
       if (initialData.department) setDepartment(initialData.department);
@@ -69,6 +71,7 @@ export default function StepOne({ initialData, onNext }: StepOneProps) {
       if (initialData.github) setGithub(initialData.github);
       if (initialData.linkedin) setLinkedin(initialData.linkedin);
       if (initialData.portfolio) setPortfolio(initialData.portfolio);
+      hasInitializedRef.current = true;
     }
   }, [initialData]);
 

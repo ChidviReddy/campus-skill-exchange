@@ -55,6 +55,7 @@ const UserGrid = ({
             department={user.department}
             year={user.year}
             rating={user.rating}
+            reviewCount={user.reviewCount}
             credits={user.credits}
             teaches={user.teaches}
             learns={user.learns}
