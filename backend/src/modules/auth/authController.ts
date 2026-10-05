@@ -5,6 +5,8 @@ import {
   loginWithEmailPassword,
   authenticateGoogle,
   getMe,
+  requestPasswordReset,
+  verifyAndResetPassword,
 } from "./authService";
 
 /**
@@ -118,3 +120,42 @@ export async function getProfile(req: Request, res: Response): Promise<void> {
     res.status(status).json({ success: false, message });
   }
 }
+
+/**
+ * Request Password Reset (Sends 6-digit OTP to user's email)
+ */
+export async function forgotPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { email } = req.body;
+    const result = await requestPasswordReset(email);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error: any) {
+    const status = error.status || 500;
+    const message = error.message || "An error occurred while requesting password reset.";
+    res.status(status).json({ success: false, message });
+  }
+}
+
+/**
+ * Verify OTP and Set New Password
+ */
+export async function resetPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const result = await verifyAndResetPassword(email, otp, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error: any) {
+    const status = error.status || 500;
+    const message = error.message || "An error occurred while resetting password.";
+    res.status(status).json({ success: false, message });
+  }
+}
+

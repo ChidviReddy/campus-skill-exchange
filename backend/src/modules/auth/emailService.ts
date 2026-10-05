@@ -123,3 +123,93 @@ export async function sendSignupVerificationEmail(options: SendOtpOptions): Prom
     return { delivered: false, info: error.message };
   }
 }
+
+/**
+ * Sends a 6-digit password reset OTP email to a user.
+ */
+export async function sendPasswordResetEmail(options: SendOtpOptions): Promise<{ delivered: boolean; info?: any }> {
+  const { toEmail, fullName, otp, expiresInMinutes = 10 } = options;
+  const user = process.env.SMTP_USER?.trim() || "noreply@skillswap.vit.ac.in";
+  const from = `"SkillSwap VIT" <${user}>`;
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; }
+    .container { max-width: 560px; margin: 30px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); padding: 32px; text-align: center; color: #ffffff; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+    .header p { margin: 6px 0 0 0; opacity: 0.9; font-size: 14px; }
+    .content { padding: 32px; color: #334155; }
+    .greeting { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+    .otp-box { background: #fdf2f8; border: 2px dashed #db2777; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
+    .otp-code { font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #be185d; font-family: monospace; }
+    .note { font-size: 13px; color: #64748b; margin-top: 16px; line-height: 1.5; }
+    .footer { background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔐 SkillSwap Password Reset</h1>
+      <p>Campus Peer-to-Peer Skill Exchange</p>
+    </div>
+    <div class="content">
+      <div class="greeting">Hello ${fullName || "SkillSwap User"},</div>
+      <p>We received a request to reset your password for your SkillSwap account. Use the verification code below to set a new password:</p>
+      
+      <div class="otp-box">
+        <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #9d174d; margin-bottom: 6px;">Your Password Reset Code</div>
+        <div class="otp-code">${otp}</div>
+      </div>
+
+      <p class="note">
+        ⏱️ This code is valid for <strong>${expiresInMinutes} minutes</strong>.<br>
+        🔒 If you did not request a password reset, please ignore this email. Your password will remain unchanged.
+      </p>
+    </div>
+    <div class="footer">
+      SkillSwap Campus Exchange • Secure Account Services<br>
+      Automated email — Please do not reply directly to this message.
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  const textContent = `Hello ${fullName},\n\nYour SkillSwap password reset code is: ${otp}\n\nThis code will expire in ${expiresInMinutes} minutes.\n\nIf you did not request this, please ignore this email.`;
+
+  console.log(`\n======================================================`);
+  console.log(`🔐  [EMAIL DISPATCH] Password Reset Request`);
+  console.log(`   To:      ${toEmail} (${fullName})`);
+  console.log(`   OTP:     🔑 ${otp}`);
+  console.log(`   Expires: In ${expiresInMinutes} minutes`);
+  console.log(`======================================================\n`);
+
+  const transporter = getTransporter();
+
+  if (!transporter) {
+    console.log(`ℹ️  [SMTP NOTICE] No SMTP credentials configured. OTP printed above for testing.`);
+    return { delivered: true, info: "console_fallback" };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to: toEmail,
+      subject: `SkillSwap Password Reset Code: ${otp}`,
+      text: textContent,
+      html: htmlContent,
+    });
+    console.log(`✅ [SMTP SUCCESS] Password reset email sent to ${toEmail}: ${info.messageId}`);
+    return { delivered: true, info };
+  } catch (error: any) {
+    console.error(`⚠️ [SMTP ERROR] Failed to send email via SMTP: ${error.message}`);
+    console.log(`🔑 [DEV OTP FALLBACK] The reset OTP for ${toEmail} is: ${otp}`);
+    return { delivered: false, info: error.message };
+  }
+}
+

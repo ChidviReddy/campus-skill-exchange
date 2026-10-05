@@ -77,6 +77,28 @@ export const authApi = {
   },
 
   /**
+   * Request password reset OTP
+   */
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const res = await api.post<{ success: boolean; message: string }>("/auth/forgot-password", {
+      email,
+    });
+    return res.data;
+  },
+
+  /**
+   * Verify OTP and reset password
+   */
+  async resetPassword(payload: {
+    email: string;
+    otp: string;
+    newPassword: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const res = await api.post<{ success: boolean; message: string }>("/auth/reset-password", payload);
+    return res.data;
+  },
+
+  /**
    * Fetch authenticated user info
    */
   async getMe(): Promise<{ success: boolean; data: AuthUser }> {

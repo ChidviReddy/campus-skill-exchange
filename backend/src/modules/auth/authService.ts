@@ -8,7 +8,7 @@ import {
   normalizeEmail,
   VIT_EMAIL_ERROR,
 } from "./authValidation";
-import { sendSignupVerificationEmail } from "./emailService";
+import { sendSignupVerificationEmail, sendPasswordResetEmail } from "./emailService";
 
 const JWT_SECRET = process.env.JWT_SECRET || "skillswap_vit_jwt_secret_key_super_secure_2026";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
@@ -628,3 +628,157 @@ export async function getMe(userId: string): Promise<UserAuthResponse> {
     credits: u.balance ?? 40,
   };
 }
+
+/**
+ * 6. Request Password Reset OTP
+ * - Checks if user exists.
+ * - Generates 6-digit OTP code with 10-minute expiry.
+ * - Saves hash in password_resets table.
+ * - Sends branded password reset email.
+ */
+export async function requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = normalizeEmail(email || "");
+
+  if (!cleanEmail || !isValidEmailFormat(cleanEmail)) {
+    throw { status: 400, message: "A valid email address is required." };
+  }
+
+  // Look up user in database
+  const userRes = await pool.query<{ id: string; full_name: string; email: string }>(
+    `SELECT id, full_name, email FROM users WHERE LOWER(email) = LOWER($1)`,
+    [cleanEmail]
+  );
+
+  if (userRes.rows.length === 0) {
+    throw {
+      status: 404,
+      message: "No account found with this email address. Please verify your email or sign up.",
+    };
+  }
+
+  const user = userRes.rows[0];
+
+  // Rate limiting: Ensure at least 30 seconds between requests
+  const recentReq = await pool.query(
+    `SELECT id FROM password_resets
+     WHERE LOWER(email) = LOWER($1) AND created_at > NOW() - INTERVAL '30 seconds'`,
+    [cleanEmail]
+  );
+
+  if (recentReq.rows.length > 0) {
+    throw {
+      status: 429,
+      message: "Please wait 30 seconds before requesting a new password reset code.",
+    };
+  }
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Hash OTP
+  const salt = await bcrypt.genSalt(10);
+  const otpHash = await bcrypt.hash(otp, salt);
+
+  // Store in password_resets table (10 min expiry)
+  await pool.query(
+    `INSERT INTO password_resets (email, otp_hash, expires_at)
+     VALUES ($1, $2, NOW() + INTERVAL '10 minutes')`,
+    [cleanEmail, otpHash]
+  );
+
+  // Send email with OTP code
+  await sendPasswordResetEmail({
+    toEmail: cleanEmail,
+    fullName: user.full_name,
+    otp,
+    expiresInMinutes: 10,
+  });
+
+  return {
+    success: true,
+    message: `Password reset code sent to ${cleanEmail}. Please check your inbox.`,
+  };
+}
+
+/**
+ * 7. Verify OTP and Reset Password
+ * - Validates unexpired, unused reset record for email.
+ * - Compares OTP.
+ * - Hashes new password with bcrypt and updates users table.
+ * - Marks reset record as used.
+ */
+export async function verifyAndResetPassword(
+  email: string,
+  otp: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = normalizeEmail(email || "");
+  const cleanOtp = otp?.trim();
+
+  if (!cleanEmail || !isValidEmailFormat(cleanEmail)) {
+    throw { status: 400, message: "A valid email address is required." };
+  }
+
+  if (!cleanOtp || cleanOtp.length !== 6) {
+    throw { status: 400, message: "Please enter the complete 6-digit verification code." };
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    throw { status: 400, message: "New password must be at least 6 characters long." };
+  }
+
+  // Look up latest unexpired, unused reset record for this email
+  const resetRes = await pool.query<{
+    id: string;
+    email: string;
+    otp_hash: string;
+    expires_at: Date;
+    used: boolean;
+  }>(
+    `SELECT id, email, otp_hash, expires_at, used
+     FROM password_resets
+     WHERE LOWER(email) = LOWER($1) AND used = FALSE AND expires_at > NOW()
+     ORDER BY created_at DESC
+     LIMIT 1`
+    , [cleanEmail]
+  );
+
+  if (resetRes.rows.length === 0) {
+    throw {
+      status: 400,
+      message: "Invalid or expired reset code. Please request a new verification code.",
+    };
+  }
+
+  const record = resetRes.rows[0];
+
+  // Verify OTP
+  const isOtpValid = await bcrypt.compare(cleanOtp, record.otp_hash);
+  if (!isOtpValid) {
+    throw {
+      status: 400,
+      message: "Incorrect verification code. Please check your email and try again.",
+    };
+  }
+
+  // Hash new password
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(newPassword, salt);
+
+  // Update password and mark reset code as used
+  await pool.query(
+    `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+    [passwordHash, cleanEmail]
+  );
+
+  await pool.query(
+    `UPDATE password_resets SET used = TRUE WHERE id = $1`,
+    [record.id]
+  );
+
+  return {
+    success: true,
+    message: "Password has been successfully reset! You can now log in with your new password.",
+  };
+}
+
