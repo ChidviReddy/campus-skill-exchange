@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback } from "react";
+import { createContext, useState, useEffect, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 import { initialNotifications } from "@/data/notifications";
 import type {
@@ -104,18 +104,18 @@ export const NotificationProvider = ({
     };
   }, [syncNotifications]);
 
-  const getUserNotifications = (userId: string | undefined): Notification[] => {
+  const getUserNotifications = useCallback((userId: string | undefined): Notification[] => {
     if (!userId) return [];
     return notifications.filter((n) => n.userId === String(userId));
-  };
+  }, [notifications]);
 
-  const getUserUnreadCount = (userId: string | undefined): number => {
+  const getUserUnreadCount = useCallback((userId: string | undefined): number => {
     if (!userId) return 0;
     return notifications.filter((n) => n.userId === String(userId) && !n.isRead)
       .length;
-  };
+  }, [notifications]);
 
-  const getFilteredUserNotifications = (
+  const getFilteredUserNotifications = useCallback((
     userId: string | undefined,
     filter: NotificationFilter
   ): Notification[] => {
@@ -128,32 +128,51 @@ export const NotificationProvider = ({
     if (filter === "credit") return userNotifs.filter((n) => n.type === "credit");
     if (filter === "system") return userNotifs.filter((n) => n.type === "system");
     return userNotifs;
-  };
+  }, [getUserNotifications]);
 
-  const markAsRead = (id: string, userId?: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => {
+  const markAsRead = useCallback((id: string, userId?: string) => {
+    let changed = false;
+    setNotifications((prev) => {
+      const hasTarget = prev.some(
+        (n) => n.id === id && (!userId || n.userId === String(userId)) && !n.isRead
+      );
+      if (!hasTarget) return prev;
+      changed = true;
+      return prev.map((n) => {
         if (n.id === id) {
           if (!userId || n.userId === String(userId)) {
             return { ...n, isRead: true };
           }
         }
         return n;
-      })
-    );
-    notificationApi.markAsRead(id).catch((err) => {
-      console.warn("Backend notification markAsRead note:", err);
+      });
     });
-  };
+    if (changed) {
+      notificationApi.markAsRead(id).catch((err) => {
+        console.warn("Backend notification markAsRead note:", err);
+      });
+    }
+  }, []);
 
-  const markNotificationsAsReadByRelatedId = (
+  const markNotificationsAsReadByRelatedId = useCallback((
     relatedId: string,
     userId?: string
   ) => {
     if (!relatedId) return;
     const targetIds: string[] = [];
-    setNotifications((prev) =>
-      prev.map((n) => {
+    setNotifications((prev) => {
+      const hasMatchingUnread = prev.some((n) => {
+        const matchesUser = !userId || n.userId === String(userId);
+        const matchesRelated =
+          n.relatedId === relatedId ||
+          n.relatedRoute === `/messages/${relatedId}` ||
+          n.relatedRoute?.includes(relatedId);
+        return matchesUser && matchesRelated && !n.isRead;
+      });
+
+      if (!hasMatchingUnread) return prev;
+
+      return prev.map((n) => {
         const matchesUser = !userId || n.userId === String(userId);
         const matchesRelated =
           n.relatedId === relatedId ||
@@ -164,42 +183,61 @@ export const NotificationProvider = ({
           return { ...n, isRead: true };
         }
         return n;
-      })
-    );
-    notificationApi.markAsReadByRelatedId(relatedId).catch(() => {});
-    targetIds.forEach((id) => {
-      notificationApi.markAsRead(id).catch(() => {});
+      });
     });
-  };
 
-  const markMessageNotificationsAsRead = (userId?: string) => {
+    if (targetIds.length > 0) {
+      notificationApi.markAsReadByRelatedId(relatedId).catch(() => {});
+      targetIds.forEach((id) => {
+        notificationApi.markAsRead(id).catch(() => {});
+      });
+    }
+  }, []);
+
+  const markMessageNotificationsAsRead = useCallback((userId?: string) => {
     const targetIds: string[] = [];
-    setNotifications((prev) =>
-      prev.map((n) => {
+    setNotifications((prev) => {
+      const hasUnreadMessages = prev.some((n) => {
+        const matchesUser = !userId || n.userId === String(userId);
+        return matchesUser && n.type === "message" && !n.isRead;
+      });
+
+      if (!hasUnreadMessages) return prev;
+
+      return prev.map((n) => {
         const matchesUser = !userId || n.userId === String(userId);
         if (matchesUser && n.type === "message" && !n.isRead) {
           targetIds.push(n.id);
           return { ...n, isRead: true };
         }
         return n;
-      })
-    );
-    targetIds.forEach((id) => {
-      notificationApi.markAsRead(id).catch(() => {});
+      });
     });
-  };
 
-  const markAllAsRead = (userId: string | undefined) => {
+    if (targetIds.length > 0) {
+      targetIds.forEach((id) => {
+        notificationApi.markAsRead(id).catch(() => {});
+      });
+    }
+  }, []);
+
+  const markAllAsRead = useCallback((userId: string | undefined) => {
     if (!userId) return;
-    setNotifications((prev) =>
-      prev.map((n) => (n.userId === String(userId) ? { ...n, isRead: true } : n))
-    );
-    notificationApi.markAllAsRead().catch((err) => {
-      console.warn("Backend notification markAllAsRead note:", err);
+    let changed = false;
+    setNotifications((prev) => {
+      const hasUnread = prev.some((n) => n.userId === String(userId) && !n.isRead);
+      if (!hasUnread) return prev;
+      changed = true;
+      return prev.map((n) => (n.userId === String(userId) ? { ...n, isRead: true } : n));
     });
-  };
+    if (changed) {
+      notificationApi.markAllAsRead().catch((err) => {
+        console.warn("Backend notification markAllAsRead note:", err);
+      });
+    }
+  }, []);
 
-  const addNotification = (
+  const addNotification = useCallback((
     notif: Omit<Notification, "id" | "isRead"> & {
       id?: string;
       isRead?: boolean;
@@ -221,24 +259,38 @@ export const NotificationProvider = ({
       group: notif.group || "today",
     };
     setNotifications((prev) => [newNotif, ...prev]);
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      notifications,
+      activeFilter,
+      setActiveFilter,
+      getUserNotifications,
+      getUserUnreadCount,
+      getFilteredUserNotifications,
+      markAsRead,
+      markNotificationsAsReadByRelatedId,
+      markMessageNotificationsAsRead,
+      markAllAsRead,
+      addNotification,
+    }),
+    [
+      notifications,
+      activeFilter,
+      getUserNotifications,
+      getUserUnreadCount,
+      getFilteredUserNotifications,
+      markAsRead,
+      markNotificationsAsReadByRelatedId,
+      markMessageNotificationsAsRead,
+      markAllAsRead,
+      addNotification,
+    ]
+  );
 
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        activeFilter,
-        setActiveFilter,
-        getUserNotifications,
-        getUserUnreadCount,
-        getFilteredUserNotifications,
-        markAsRead,
-        markNotificationsAsReadByRelatedId,
-        markMessageNotificationsAsRead,
-        markAllAsRead,
-        addNotification,
-      }}
-    >
+    <NotificationContext.Provider value={contextValue}>
       {children}
     </NotificationContext.Provider>
   );

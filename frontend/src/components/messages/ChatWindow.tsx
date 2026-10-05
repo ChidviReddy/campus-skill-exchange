@@ -30,8 +30,10 @@ const ChatWindow = ({ conversation, onBack }: ChatWindowProps) => {
 
   // Mark messages and notifications as read when opening or viewing conversation
   useEffect(() => {
-    markConversationAsRead(conversation.id);
-  }, [conversation.id, messages.length, markConversationAsRead]);
+    if (conversation?.id) {
+      markConversationAsRead(conversation.id);
+    }
+  }, [conversation?.id, markConversationAsRead]);
 
   const handleSendMessage = (text: string) => {
     sendMessage(conversation.id, text);

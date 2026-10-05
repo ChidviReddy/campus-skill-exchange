@@ -63,11 +63,15 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [rawConversations, setRawConversations] =
     useState<Conversation[]>(initialConversations);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationIdState] = useState<string | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
   activeConversationIdRef.current = activeConversationId;
   const isSyncingRef = useRef(false);
   const loadedInitialMessagesRef = useRef<Set<string>>(new Set());
+
+  const setActiveConversationId = useCallback((id: string | null) => {
+    setActiveConversationIdState((prev) => (prev === id ? prev : id));
+  }, []);
 
   // Real-time synchronization of conversations and messages
   const syncChat = useCallback(async () => {
@@ -491,12 +495,24 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       });
   };
 
-  const markConversationAsRead = (conversationId: string) => {
-    setMessages((prev) =>
-      prev.map((m) => {
+  const markConversationAsRead = useCallback((conversationId: string) => {
+    if (!conversationId) return;
+
+    setMessages((prev) => {
+      const hasUnread = prev.some(
+        (m) =>
+          m.conversationId === conversationId &&
+          m.receiverId === currentUser?.id &&
+          (!m.read || !m.isRead)
+      );
+
+      // Guard: If there are no unread messages, return existing array reference to avoid re-rendering
+      if (!hasUnread) return prev;
+
+      return prev.map((m) => {
         if (
           m.conversationId === conversationId &&
-          m.receiverId === currentUser.id &&
+          m.receiverId === currentUser?.id &&
           (!m.read || !m.isRead)
         ) {
           return {
@@ -506,18 +522,20 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
           };
         }
         return m;
-      })
-    );
+      });
+    });
 
     // Clear notifications for this conversation in notifications tab & badge immediately
-    markNotificationsAsReadByRelatedId(conversationId, currentUser.id);
+    if (currentUser?.id) {
+      markNotificationsAsReadByRelatedId(conversationId, currentUser.id);
+    }
 
     if (!conversationId.startsWith("c-")) {
       messageApi.markAsRead(conversationId).catch((err) => {
         console.warn("Failed to mark conversation read on backend:", err);
       });
     }
-  };
+  }, [currentUser?.id, markNotificationsAsReadByRelatedId]);
 
   const markAllAsRead = () => {
     setMessages((prev) =>
@@ -535,25 +553,42 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     markMessageNotificationsAsRead(currentUser.id);
   };
 
+  const contextValue = useMemo(
+    () => ({
+      conversations: userConversations,
+      messages,
+      totalUnreadCount,
+      activeConversationId,
+      setActiveConversationId,
+      syncChat,
+      getConversationById,
+      getConversationByParticipantName,
+      getOrCreateConversation,
+      getOrCreateConversationForMentor,
+      getMessagesByConversationId,
+      sendMessage,
+      markConversationAsRead,
+      markAllAsRead,
+    }),
+    [
+      userConversations,
+      messages,
+      totalUnreadCount,
+      activeConversationId,
+      setActiveConversationId,
+      syncChat,
+      getConversationById,
+      getConversationByParticipantName,
+      getOrCreateConversation,
+      getOrCreateConversationForMentor,
+      getMessagesByConversationId,
+      sendMessage,
+      markConversationAsRead,
+    ]
+  );
+
   return (
-    <ChatContext.Provider
-      value={{
-        conversations: userConversations,
-        messages,
-        totalUnreadCount,
-        activeConversationId,
-        setActiveConversationId,
-        syncChat,
-        getConversationById,
-        getConversationByParticipantName,
-        getOrCreateConversation,
-        getOrCreateConversationForMentor,
-        getMessagesByConversationId,
-        sendMessage,
-        markConversationAsRead,
-        markAllAsRead,
-      }}
-    >
+    <ChatContext.Provider value={contextValue}>
       {children}
     </ChatContext.Provider>
   );

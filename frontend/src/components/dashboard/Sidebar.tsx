@@ -80,7 +80,7 @@ const Sidebar = () => {
   const pendingRequestsCount = incomingInitialCount + incomingRescheduleCount;
 
   return (
-    <aside className="sticky top-0 flex h-screen w-64 flex-col justify-between border-r border-violet-100 bg-white shadow-sm">
+    <aside className="sticky top-0 relative z-30 flex h-screen w-64 flex-col justify-between border-r border-violet-100 bg-white shadow-sm">
       {/* Logo */}
       <div>
         <div className="flex h-20 items-center px-6">
