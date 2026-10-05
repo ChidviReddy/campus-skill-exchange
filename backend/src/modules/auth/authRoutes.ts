@@ -7,6 +7,7 @@ import {
   getProfile,
   forgotPassword,
   resetPassword,
+  changePassword,
 } from "./authController";
 import { requireAuth } from "./authMiddleware";
 
@@ -25,6 +26,9 @@ router.post("/login", login);
 // Password Reset Flow (OTP)
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+
+// Change password (authenticated)
+router.post("/change-password", requireAuth, changePassword);
 
 // Real Google OAuth / GIS login & signup
 router.post("/google", googleAuth);

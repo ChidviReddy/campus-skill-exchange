@@ -7,6 +7,7 @@ import {
   getMe,
   requestPasswordReset,
   verifyAndResetPassword,
+  changeUserPassword,
 } from "./authService";
 
 /**
@@ -158,4 +159,30 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     res.status(status).json({ success: false, message });
   }
 }
+
+/**
+ * Change Password for Authenticated User
+ */
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, message: "Unauthorized." });
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const result = await changeUserPassword(userId, currentPassword, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error: any) {
+    const status = error.status || 500;
+    const message = error.message || "An error occurred while changing password.";
+    res.status(status).json({ success: false, message });
+  }
+}
+
 

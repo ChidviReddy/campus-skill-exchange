@@ -168,3 +168,83 @@ export async function markNotificationByRelatedIdAsRead(req: Request, res: Respo
   }
 }
 
+/**
+ * Get User's Notification Preferences
+ */
+export async function getNotificationPreferences(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, message: "Unauthorized." });
+      return;
+    }
+
+    const result = await pool.query<{ notification_preferences: any }>(
+      `SELECT notification_preferences FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    const defaultPrefs = {
+      sessionRequests: true,
+      sessionReminders: true,
+      messages: true,
+      reviews: true,
+      credits: true,
+      emailNotifications: false,
+    };
+
+    const preferences = result.rows[0]?.notification_preferences || defaultPrefs;
+
+    res.json({
+      success: true,
+      data: preferences,
+    });
+  } catch (error) {
+    console.error("Error fetching notification preferences:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch notification preferences.",
+    });
+  }
+}
+
+/**
+ * Update User's Notification Preferences
+ */
+export async function updateNotificationPreferences(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, message: "Unauthorized." });
+      return;
+    }
+
+    const { preferences } = req.body;
+    if (!preferences || typeof preferences !== "object") {
+      res.status(400).json({ success: false, message: "Invalid preferences data." });
+      return;
+    }
+
+    const result = await pool.query<{ notification_preferences: any }>(
+      `UPDATE users 
+       SET notification_preferences = $1, updated_at = NOW() 
+       WHERE id = $2 
+       RETURNING notification_preferences`,
+      [JSON.stringify(preferences), userId]
+    );
+
+    res.json({
+      success: true,
+      message: "Notification preferences updated successfully.",
+      data: result.rows[0]?.notification_preferences || preferences,
+    });
+  } catch (error) {
+    console.error("Error updating notification preferences:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update notification preferences.",
+    });
+  }
+}
+
+

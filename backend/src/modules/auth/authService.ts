@@ -782,3 +782,70 @@ export async function verifyAndResetPassword(
   };
 }
 
+/**
+ * 6. Change Password for Authenticated User
+ */
+export async function changeUserPassword(
+  userId: string,
+  currentPassword?: string,
+  newPassword?: string
+): Promise<{ success: boolean; message: string }> {
+  if (!newPassword || newPassword.length < 6) {
+    throw { status: 400, message: "New password must be at least 6 characters long." };
+  }
+
+  // Get current user's password_hash
+  const userRes = await pool.query<{ password_hash: string | null }>(
+    `SELECT password_hash FROM users WHERE id = $1`,
+    [userId]
+  );
+
+  if (userRes.rows.length === 0) {
+    throw { status: 404, message: "User account not found." };
+  }
+
+  const user = userRes.rows[0];
+
+  // If user signed up via Google OAuth and has no password yet
+  if (!user.password_hash) {
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+    await pool.query(
+      `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+      [passwordHash, userId]
+    );
+    return {
+      success: true,
+      message: "Password set successfully! You can now sign in with your email and password.",
+    };
+  }
+
+  if (!currentPassword) {
+    throw { status: 400, message: "Current password is required." };
+  }
+
+  if (currentPassword === newPassword) {
+    throw { status: 400, message: "New password must be different from your current password." };
+  }
+
+  // Verify current password
+  const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!isMatch) {
+    throw { status: 400, message: "Incorrect current password. Please try again." };
+  }
+
+  // Hash new password
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(newPassword, salt);
+
+  await pool.query(
+    `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+    [passwordHash, userId]
+  );
+
+  return {
+    success: true,
+    message: "Password updated successfully!",
+  };
+}
+
