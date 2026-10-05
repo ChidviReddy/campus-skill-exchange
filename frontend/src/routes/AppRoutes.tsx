@@ -63,6 +63,10 @@ export default function AppRoutes() {
           path="/my-sessions"
           element={<MySessions />}
         />
+        <Route
+          path="/sessions"
+          element={<MySessions />}
+        />
 
         <Route
           path="/mentor-requests"

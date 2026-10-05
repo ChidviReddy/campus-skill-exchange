@@ -160,7 +160,7 @@ const Topbar = ({
                     type="button"
                     onClick={() => {
                       setIsUserMenuOpen(false);
-                      navigate("/sessions");
+                      navigate("/my-sessions");
                     }}
                     className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-violet-50 hover:text-violet-900"
                   >
