@@ -26,7 +26,7 @@ const PendingRequests = () => {
     () =>
       sessions.filter(
         (s) =>
-          s.mentorId === currentUser.id &&
+          String(s.mentorId).toLowerCase() === String(currentUser.id).toLowerCase() &&
           s.status === "pending" &&
           !isInitialRequestExpired(s)
       ),
@@ -38,7 +38,7 @@ const PendingRequests = () => {
     () =>
       rescheduleRequests.filter(
         (r) =>
-          r.requestedForId === currentUser.id &&
+          String(r.requestedForId).toLowerCase() === String(currentUser.id).toLowerCase() &&
           r.status === "pending" &&
           !isRescheduleRequestExpired(r)
       ),
@@ -50,7 +50,7 @@ const PendingRequests = () => {
     () =>
       sessions.filter(
         (s) =>
-          s.learnerId === currentUser.id &&
+          String(s.learnerId).toLowerCase() === String(currentUser.id).toLowerCase() &&
           s.status === "pending" &&
           !isInitialRequestExpired(s)
       ),
@@ -62,7 +62,7 @@ const PendingRequests = () => {
     () =>
       rescheduleRequests.filter(
         (r) =>
-          r.requestedById === currentUser.id &&
+          String(r.requestedById).toLowerCase() === String(currentUser.id).toLowerCase() &&
           r.status === "pending" &&
           !isRescheduleRequestExpired(r)
       ),
@@ -106,7 +106,7 @@ const PendingRequests = () => {
 
         {totalIncomingCount > 0 ? (
           <Link
-            to={incomingInitialRequests.length > 0 ? "/mentor-requests" : "/my-sessions"}
+            to="/mentor-requests"
             className="cursor-pointer inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700"
           >
             View Requests <ArrowRight size={14} />
@@ -129,7 +129,7 @@ const PendingRequests = () => {
           </p>
           <button
             type="button"
-            onClick={() => navigate(incomingInitialRequests.length > 0 ? "/mentor-requests" : "/my-sessions")}
+            onClick={() => navigate("/mentor-requests")}
             className="cursor-pointer text-xs font-bold text-amber-800 underline hover:text-amber-950"
           >
             View Requests

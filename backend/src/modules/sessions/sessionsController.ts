@@ -135,6 +135,61 @@ function parseToSqlTime(input: string, fallback: string = "17:00:00"): string {
   return fallback;
 }
 
+// Helper: Parse time range (e.g. "05:00 PM – 06:00 PM", "17:00 - 18:00") into SQL start and end times
+function parseTimeRangeToSql(
+  input: string,
+  fallbackStart: string = "17:00:00",
+  durationMinutes: number = 60
+): { startTime: string; endTime: string } {
+  if (!input) return { startTime: fallbackStart, endTime: "18:00:00" };
+  const clean = input.replace(/[\u2013\u2014–—]/g, "-").trim();
+  if (clean.includes("-")) {
+    const parts = clean.split("-").map((s) => s.trim());
+    const startTime = parseToSqlTime(parts[0], fallbackStart);
+    let endTime = parseToSqlTime(parts[1], "18:00:00");
+    if (!parts[1] || endTime === fallbackStart) {
+      const [h, m] = startTime.split(":").map(Number);
+      const totalMin = h * 60 + m + durationMinutes;
+      const endH = Math.floor(totalMin / 60) % 24;
+      const endM = totalMin % 60;
+      endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}:00`;
+    }
+    return { startTime, endTime };
+  }
+  const startTime = parseToSqlTime(clean, fallbackStart);
+  const [h, m] = startTime.split(":").map(Number);
+  const totalMin = h * 60 + m + durationMinutes;
+  const endH = Math.floor(totalMin / 60) % 24;
+  const endM = totalMin % 60;
+  const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}:00`;
+  return { startTime, endTime };
+}
+
+// Helper: Format SQL TIME (HH:MM:SS) into "HH:MM AM/PM"
+function formatSqlTimeForDisplay(timeStr: string): string {
+  if (!timeStr) return "17:00";
+  const [h, m] = timeStr.slice(0, 5).split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+// Helper: Format SQL DATE (YYYY-MM-DD) into "Month DD, YYYY"
+function formatSqlDateForDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  const [year, month, day] = parts.map(Number);
+  if (!year || !month || !day) return dateStr;
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const monthName = months[month - 1];
+  const dayPadded = day.toString().padStart(2, "0");
+  return `${monthName} ${dayPadded}, ${year}`;
+}
+
 export async function bookSession(req: Request, res: Response): Promise<void> {
   const client = await pool.connect();
   try {
@@ -528,6 +583,389 @@ export async function updateSessionTiming(req: Request, res: Response): Promise<
     await client.query("ROLLBACK");
     console.error("Error updating session timing:", error);
     res.status(500).json({ success: false, message: "Failed to update session timing." });
+  } finally {
+    client.release();
+  }
+}
+
+export async function getMyRescheduleRequests(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        rr.id,
+        rr.session_id,
+        rr.requested_by,
+        rr.requested_to,
+        rr.proposed_date::text AS proposed_date,
+        rr.proposed_start_time::text AS proposed_start_time,
+        rr.proposed_end_time::text AS proposed_end_time,
+        rr.reason,
+        rr.status,
+        rr.created_at,
+        rr.responded_at,
+        s.topic,
+        s.scheduled_date::text AS current_date,
+        s.start_time::text AS current_start_time,
+        s.end_time::text AS current_end_time,
+        s.duration_minutes,
+        s.mentor_id,
+        s.learner_id
+      FROM reschedule_requests rr
+      JOIN sessions s ON rr.session_id = s.id
+      WHERE rr.requested_by = $1 OR rr.requested_to = $1
+      ORDER BY rr.created_at DESC;`,
+      [userId]
+    );
+
+    const formatted = result.rows.map((row) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      requestedById: row.requested_by,
+      requestedForId: row.requested_to,
+      mentorId: row.mentor_id,
+      learnerId: row.learner_id,
+      topic: row.topic,
+      currentDate: formatSqlDateForDisplay(row.current_date),
+      currentTime: `${formatSqlTimeForDisplay(row.current_start_time)} – ${formatSqlTimeForDisplay(row.current_end_time)}`,
+      proposedDate: formatSqlDateForDisplay(row.proposed_date),
+      proposedTime: `${formatSqlTimeForDisplay(row.proposed_start_time)} – ${formatSqlTimeForDisplay(row.proposed_end_time)}`,
+      duration: `${row.duration_minutes || 60} minutes`,
+      status: row.status === "declined" ? "rejected" : row.status,
+      createdAt: row.created_at,
+      respondedAt: row.responded_at,
+      reason: row.reason,
+    }));
+
+    res.json({
+      success: true,
+      data: formatted,
+    });
+  } catch (error) {
+    console.error("Error fetching reschedule requests:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch reschedule requests." });
+  }
+}
+
+export async function createRescheduleRequest(req: Request, res: Response): Promise<void> {
+  const client = await pool.connect();
+  try {
+    const userId = req.user?.userId;
+    const { id: sessionId } = req.params;
+    const { proposedDate, proposedTime, reason } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    if (!sessionId || !proposedDate || !proposedTime) {
+      res.status(400).json({ success: false, message: "Missing required fields (proposedDate, proposedTime)." });
+      return;
+    }
+
+    const sessionRes = await client.query(
+      `SELECT * FROM sessions WHERE id = $1`,
+      [sessionId]
+    );
+
+    if (sessionRes.rows.length === 0) {
+      res.status(404).json({ success: false, message: "Session not found." });
+      return;
+    }
+
+    const session = sessionRes.rows[0];
+
+    if (session.mentor_id !== userId && session.learner_id !== userId) {
+      res.status(403).json({ success: false, message: "You are not a participant in this session." });
+      return;
+    }
+
+    const isMentor = session.mentor_id === userId;
+    const requestedBy = userId;
+    const requestedTo = isMentor ? session.learner_id : session.mentor_id;
+
+    const sqlDate = parseToSqlDate(proposedDate);
+    const { startTime: sqlStart, endTime: sqlEnd } = parseTimeRangeToSql(
+      proposedTime,
+      session.start_time?.slice(0, 5) || "17:00",
+      session.duration_minutes || 60
+    );
+
+    await client.query("BEGIN");
+
+    // Cancel any existing pending reschedule requests for this session
+    await client.query(
+      `UPDATE reschedule_requests SET status = 'cancelled', updated_at = NOW() WHERE session_id = $1 AND status = 'pending'`,
+      [sessionId]
+    );
+
+    const insertRes = await client.query(
+      `INSERT INTO reschedule_requests (
+        session_id, requested_by, requested_to, proposed_date, proposed_start_time, proposed_end_time, reason, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+      RETURNING id, session_id, requested_by, requested_to, proposed_date::text, proposed_start_time::text, proposed_end_time::text, reason, status, created_at`,
+      [sessionId, requestedBy, requestedTo, sqlDate, sqlStart, sqlEnd, reason?.trim() || null]
+    );
+
+    const created = insertRes.rows[0];
+
+    // Look up sender's name
+    const senderRes = await client.query<{ full_name: string }>(
+      `SELECT full_name FROM users WHERE id = $1`,
+      [userId]
+    );
+    const senderName = senderRes.rows[0]?.full_name || (isMentor ? "Teacher / Mentor" : "Student");
+
+    const displayStart = formatSqlTimeForDisplay(sqlStart);
+    const displayEnd = formatSqlTimeForDisplay(sqlEnd);
+    const displayTimeRange = `${displayStart} – ${displayEnd}`;
+    const displayDate = formatSqlDateForDisplay(sqlDate);
+
+    // Create notification for requestedTo
+    await client.query(
+      `INSERT INTO notifications (user_id, type, title, message, related_id, related_route)
+       VALUES ($1, 'session', 'Reschedule Proposed', $2, $3, $4)`,
+      [
+        requestedTo,
+        `${senderName} proposed to reschedule your session on "${session.topic}" to ${displayDate} at ${displayTimeRange}.`,
+        sessionId,
+        `/session-details/${sessionId}`,
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    const formattedRequest = {
+      id: created.id,
+      sessionId: session.id,
+      requestedById: requestedBy,
+      requestedForId: requestedTo,
+      mentorId: session.mentor_id,
+      learnerId: session.learner_id,
+      topic: session.topic,
+      currentDate: formatSqlDateForDisplay(session.scheduled_date),
+      currentTime: `${formatSqlTimeForDisplay(session.start_time)} – ${formatSqlTimeForDisplay(session.end_time)}`,
+      proposedDate: displayDate,
+      proposedTime: displayTimeRange,
+      duration: `${session.duration_minutes || 60} minutes`,
+      status: "pending",
+      createdAt: created.created_at,
+      reason: created.reason,
+    };
+
+    res.status(201).json({
+      success: true,
+      message: "Reschedule request created successfully.",
+      data: formattedRequest,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error creating reschedule request:", error);
+    res.status(500).json({ success: false, message: "Failed to create reschedule request." });
+  } finally {
+    client.release();
+  }
+}
+
+export async function respondToRescheduleRequest(req: Request, res: Response): Promise<void> {
+  const client = await pool.connect();
+  try {
+    const userId = req.user?.userId;
+    const { requestId } = req.params;
+    const { action } = req.body; // 'accept' | 'reject' | 'decline' | 'cancel'
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    if (!requestId || !action) {
+      res.status(400).json({ success: false, message: "Missing required fields (requestId, action)." });
+      return;
+    }
+
+    const reqRes = await client.query(
+      `SELECT rr.*, s.topic, s.status AS session_status, s.mentor_id, s.learner_id, s.scheduled_date, s.start_time, s.end_time
+       FROM reschedule_requests rr
+       JOIN sessions s ON rr.session_id = s.id
+       WHERE rr.id = $1`,
+      [requestId]
+    );
+
+    if (reqRes.rows.length === 0) {
+      res.status(404).json({ success: false, message: "Reschedule request not found." });
+      return;
+    }
+
+    const rr = reqRes.rows[0];
+
+    if (rr.status !== "pending") {
+      res.status(400).json({ success: false, message: `Reschedule request has already been ${rr.status}.` });
+      return;
+    }
+
+    const responderRes = await client.query<{ full_name: string }>(
+      `SELECT full_name FROM users WHERE id = $1`,
+      [userId]
+    );
+    const responderName = responderRes.rows[0]?.full_name || "A participant";
+
+    await client.query("BEGIN");
+
+    if (action === "accept") {
+      if (userId !== rr.requested_to) {
+        await client.query("ROLLBACK");
+        res.status(403).json({ success: false, message: "Only the recipient can accept this proposal." });
+        return;
+      }
+
+      // 1. Update reschedule request
+      await client.query(
+        `UPDATE reschedule_requests
+         SET status = 'accepted', responded_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [requestId]
+      );
+
+      // Compute updated duration
+      const [sh, sm] = rr.proposed_start_time.slice(0, 5).split(":").map(Number);
+      const [eh, em] = rr.proposed_end_time.slice(0, 5).split(":").map(Number);
+      const diff = (eh * 60 + em) - (sh * 60 + sm);
+      const durationMinutes = diff > 0 ? diff : 60;
+
+      // 2. Update session with proposed timing!
+      await client.query(
+        `UPDATE sessions
+         SET scheduled_date = $1, start_time = $2, end_time = $3, duration_minutes = $4, status = 'upcoming', updated_at = NOW()
+         WHERE id = $5`,
+        [rr.proposed_date, rr.proposed_start_time, rr.proposed_end_time, durationMinutes, rr.session_id]
+      );
+
+      // 3. Make sure session request record is marked accepted
+      await client.query(
+        `UPDATE session_requests SET status = 'accepted', responded_at = NOW(), updated_at = NOW() WHERE session_id = $1`,
+        [rr.session_id]
+      );
+
+      const displayStart = formatSqlTimeForDisplay(rr.proposed_start_time);
+      const displayEnd = formatSqlTimeForDisplay(rr.proposed_end_time);
+      const displayTimeRange = `${displayStart} – ${displayEnd}`;
+      const displayDate = formatSqlDateForDisplay(rr.proposed_date);
+
+      // 4. Notify requester
+      await client.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_id, related_route)
+         VALUES ($1, 'session', 'Reschedule Accepted', $2, $3, $4)`,
+        [
+          rr.requested_by,
+          `${responderName} accepted your reschedule proposal for "${rr.topic}". The session is now confirmed for ${displayDate} at ${displayTimeRange}.`,
+          rr.session_id,
+          `/session-details/${rr.session_id}`,
+        ]
+      );
+
+      await client.query("COMMIT");
+
+      res.json({
+        success: true,
+        message: "Reschedule accepted and session schedule updated.",
+        data: {
+          requestId,
+          sessionId: rr.session_id,
+          status: "accepted",
+          scheduledDate: displayDate,
+          startTime: displayStart,
+          endTime: displayEnd,
+        },
+      });
+      return;
+    }
+
+    if (action === "reject" || action === "decline") {
+      if (userId !== rr.requested_to) {
+        await client.query("ROLLBACK");
+        res.status(403).json({ success: false, message: "Only the recipient can decline this proposal." });
+        return;
+      }
+
+      await client.query(
+        `UPDATE reschedule_requests
+         SET status = 'declined', responded_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [requestId]
+      );
+
+      // Notify requester
+      await client.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_id, related_route)
+         VALUES ($1, 'session', 'Reschedule Declined', $2, $3, $4)`,
+        [
+          rr.requested_by,
+          `${responderName} declined your reschedule proposal for "${rr.topic}". The session remains at its original scheduled time.`,
+          rr.session_id,
+          `/session-details/${rr.session_id}`,
+        ]
+      );
+
+      await client.query("COMMIT");
+
+      res.json({
+        success: true,
+        message: "Reschedule request declined.",
+        data: { requestId, status: "rejected" },
+      });
+      return;
+    }
+
+    if (action === "cancel") {
+      if (userId !== rr.requested_by) {
+        await client.query("ROLLBACK");
+        res.status(403).json({ success: false, message: "Only the requester can cancel this proposal." });
+        return;
+      }
+
+      await client.query(
+        `UPDATE reschedule_requests
+         SET status = 'cancelled', responded_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [requestId]
+      );
+
+      // Notify recipient
+      await client.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_id, related_route)
+         VALUES ($1, 'session', 'Reschedule Cancelled', $2, $3, $4)`,
+        [
+          rr.requested_to,
+          `${responderName} cancelled the reschedule proposal for "${rr.topic}". The session remains at its original scheduled time.`,
+          rr.session_id,
+          `/session-details/${rr.session_id}`,
+        ]
+      );
+
+      await client.query("COMMIT");
+
+      res.json({
+        success: true,
+        message: "Reschedule request cancelled.",
+        data: { requestId, status: "cancelled" },
+      });
+      return;
+    }
+
+    await client.query("ROLLBACK");
+    res.status(400).json({ success: false, message: "Invalid action." });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error responding to reschedule request:", error);
+    res.status(500).json({ success: false, message: "Failed to respond to reschedule request." });
   } finally {
     client.release();
   }

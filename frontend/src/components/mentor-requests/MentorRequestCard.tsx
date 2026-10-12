@@ -92,8 +92,13 @@ const MentorRequestCard = ({
   const isRescheduleRequester =
     pendingReschedule && currentUser.id === pendingReschedule.requestedById;
 
+  const isMentor = String(currentUser.id).toLowerCase() === String(session.mentorId).toLowerCase();
   const learnerObj = getUserById(session.learnerId);
-  const learnerName = session.learnerName || learnerObj?.name || "Student Learner";
+  const mentorObj = getUserById(session.mentorId);
+  const otherPartyUser = isMentor ? learnerObj : mentorObj;
+  const otherPartyName = isMentor
+    ? session.learnerName || learnerObj?.name || "Student Learner"
+    : session.mentor || mentorObj?.name || "Teacher / Mentor";
 
   const isInitialExpired = isInitialRequestExpired(session);
   const isUpcomingExpired = isSessionExpired(session);
@@ -109,12 +114,12 @@ const MentorRequestCard = ({
   return (
     <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm transition-all duration-200 hover:border-violet-300 hover:shadow-md">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        {/* Learner & Session Info */}
+        {/* User & Session Info */}
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <UserAvatar
-              avatar={learnerObj?.avatar}
-              name={learnerName}
+              avatar={otherPartyUser?.avatar}
+              name={otherPartyName}
               sizeClassName="h-12 w-12"
               textClassName="text-base font-bold"
               className="rounded-2xl"
@@ -123,7 +128,7 @@ const MentorRequestCard = ({
             <div>
               <div className="flex items-center gap-2.5">
                 <h3 className="text-lg font-bold text-slate-900">
-                  {learnerName}
+                  {otherPartyName}
                 </h3>
                 <span
                   className={`rounded-full px-3 py-0.5 text-xs font-bold ${badgeBg}`}
@@ -140,7 +145,7 @@ const MentorRequestCard = ({
 
               <p className="flex items-center gap-1.5 text-xs text-slate-500">
                 <User size={13} />
-                Student • Peer Mentorship
+                {isMentor ? "Student • Peer Mentorship" : "Mentor • Peer Mentorship"}
               </p>
             </div>
           </div>
@@ -184,7 +189,7 @@ const MentorRequestCard = ({
 
             <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-emerald-700 border border-emerald-100 font-semibold">
               <Coins size={14} className="text-emerald-600" />
-              +10 Credits at completion
+              {isMentor ? "+10 Credits at completion" : `${session.credits || 5} Credits`}
             </span>
           </div>
 
@@ -199,7 +204,7 @@ const MentorRequestCard = ({
                   <div>
                     <p className="text-xs font-bold text-amber-950">
                       {isRescheduleRecipient
-                        ? `${learnerName} proposed a new schedule:`
+                        ? `${otherPartyName} proposed a new schedule:`
                         : "You proposed a new schedule:"}
                     </p>
                     <p className="text-xs font-semibold text-amber-800 mt-0.5">
@@ -236,7 +241,7 @@ const MentorRequestCard = ({
 
                 {isRescheduleRequester && (
                   <span className="text-xs font-semibold text-amber-700 italic">
-                    Waiting for learner response
+                    Waiting for {otherPartyName} to respond
                   </span>
                 )}
               </div>

@@ -65,14 +65,14 @@ const Sidebar = () => {
 
   const incomingInitialCount = sessions.filter(
     (s) =>
-      s.mentorId === currentUser.id &&
+      String(s.mentorId).toLowerCase() === String(currentUser.id).toLowerCase() &&
       s.status === "pending" &&
       !isInitialRequestExpired(s)
   ).length;
 
   const incomingRescheduleCount = rescheduleRequests.filter(
     (r) =>
-      r.requestedForId === currentUser.id &&
+      String(r.requestedForId).toLowerCase() === String(currentUser.id).toLowerCase() &&
       r.status === "pending" &&
       !isRescheduleRequestExpired(r)
   ).length;

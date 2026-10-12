@@ -234,13 +234,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const refreshSessions = useCallback(async (): Promise<void> => {
     if (!authUser?.id) return;
     try {
-      const [liveSessions, liveReviews] = await Promise.all([
+      const [liveSessions, liveReviews, liveReschedules] = await Promise.all([
         sessionApi.getMySessions().catch((err) => {
           console.warn("Using local sessions fallback:", err);
           return null;
         }),
         reviewApi.getMyReviews().catch((err) => {
           console.warn("Using local reviews fallback:", err);
+          return null;
+        }),
+        sessionApi.getMyRescheduleRequests().catch((err) => {
+          console.warn("Using local reschedule fallback:", err);
           return null;
         }),
       ]);
@@ -275,6 +279,26 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           const merged = Array.from(map.values());
           try {
             localStorage.setItem("skillswap_saved_reviews", JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+
+      // Sync reschedule requests
+      if (liveReschedules) {
+        setRescheduleRequests((prev) => {
+          const map = new Map<string, RescheduleRequest>();
+          try {
+            const cached = JSON.parse(localStorage.getItem("skillswap_saved_reschedules") || "[]");
+            if (Array.isArray(cached)) {
+              cached.forEach((r: RescheduleRequest) => map.set(r.id, r));
+            }
+          } catch {}
+          prev.forEach((r) => map.set(r.id, r));
+          liveReschedules.forEach((r) => map.set(r.id, r));
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem("skillswap_saved_reschedules", JSON.stringify(merged));
           } catch {}
           return merged;
         });
@@ -356,7 +380,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authUser?.id]);
 
-  // Initial load of cached reviews from localStorage
+  // Initial load of cached reviews and reschedules from localStorage
   useEffect(() => {
     try {
       const cached = JSON.parse(localStorage.getItem("skillswap_saved_reviews") || "[]");
@@ -365,6 +389,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           const map = new Map<string, SessionReview>();
           cached.forEach((r: SessionReview) => map.set(r.sessionId, r));
           prev.forEach((r) => map.set(r.sessionId, r));
+          return Array.from(map.values());
+        });
+      }
+    } catch {}
+    try {
+      const cachedResched = JSON.parse(localStorage.getItem("skillswap_saved_reschedules") || "[]");
+      if (Array.isArray(cachedResched) && cachedResched.length > 0) {
+        setRescheduleRequests((prev) => {
+          const map = new Map<string, RescheduleRequest>();
+          cachedResched.forEach((r: RescheduleRequest) => map.set(r.id, r));
+          prev.forEach((r) => map.set(r.id, r));
           return Array.from(map.values());
         });
       }
@@ -414,6 +449,23 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           setReviews((prev) => [rev, ...prev.filter((r) => r.sessionId !== rev.sessionId)]);
         }
         refreshSessions();
+      } else if (
+        event.data?.type === "RESCHEDULE_PROPOSED" ||
+        event.data?.type === "RESCHEDULE_ACCEPTED" ||
+        event.data?.type === "RESCHEDULE_DECLINED" ||
+        event.data?.type === "RESCHEDULE_CANCELLED"
+      ) {
+        if (event.data?.type === "RESCHEDULE_ACCEPTED" && event.data?.sessionId) {
+          const sid = event.data.sessionId;
+          const pDate = event.data.proposedDate;
+          const pTime = event.data.proposedTime;
+          if (pDate && pTime) {
+            setSessions((prev) =>
+              prev.map((s) => (s.id === sid ? { ...s, date: pDate, time: pTime, status: "upcoming" } : s))
+            );
+          }
+        }
+        refreshSessions();
       }
     };
 
@@ -453,6 +505,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             refreshSessions();
           } else if (data.type === "REVIEW_SUBMITTED" && data.review) {
             setReviews((prev) => [data.review, ...prev.filter((r) => r.sessionId !== data.review.sessionId)]);
+            refreshSessions();
+          } else if (
+            data.type === "RESCHEDULE_PROPOSED" ||
+            data.type === "RESCHEDULE_ACCEPTED" ||
+            data.type === "RESCHEDULE_DECLINED" ||
+            data.type === "RESCHEDULE_CANCELLED"
+          ) {
+            if (data.type === "RESCHEDULE_ACCEPTED" && data.sessionId && data.proposedDate && data.proposedTime) {
+              setSessions((prev) =>
+                prev.map((s) => (s.id === data.sessionId ? { ...s, date: data.proposedDate, time: data.proposedTime, status: "upcoming" } : s))
+              );
+            }
             refreshSessions();
           }
         } catch {
@@ -871,10 +935,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     const requestedById = currentUser.id;
     const requestedForId = isMentor ? session.learnerId : session.mentorId;
-    const newRequestId = `resched-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const tempRequestId = `resched-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
 
     const newRequest: RescheduleRequest = {
-      id: newRequestId,
+      id: tempRequestId,
       sessionId: session.id,
       requestedById,
       requestedForId,
@@ -891,7 +955,38 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       reason: reason?.trim() || undefined,
     };
 
+    // 1. Optimistic update
     setRescheduleRequests((prev) => [newRequest, ...prev]);
+
+    // 2. Persist to PostgreSQL backend
+    sessionApi
+      .createRescheduleRequest(session.id, {
+        proposedDate,
+        proposedTime,
+        reason: reason?.trim() || undefined,
+      })
+      .then((res) => {
+        if (res?.data?.id) {
+          setRescheduleRequests((prev) =>
+            prev.map((r) => (r.id === tempRequestId ? res.data : r))
+          );
+        }
+        // Broadcast cross-tab
+        try {
+          const bc = new BroadcastChannel("skillswap_session_channel");
+          bc.postMessage({ type: "RESCHEDULE_PROPOSED", sessionId: session.id });
+          bc.close();
+        } catch {}
+        try {
+          localStorage.setItem(
+            "skillswap_session_event",
+            JSON.stringify({ type: "RESCHEDULE_PROPOSED", sessionId: session.id, timestamp: Date.now() })
+          );
+        } catch {}
+      })
+      .catch((err) => {
+        console.warn("Backend reschedule creation sync note:", err);
+      });
 
     // Notify recipient
     addNotification({
@@ -936,7 +1031,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, error: "Associated session is no longer active." };
     }
 
-    // 1. Update reschedule request status
+    // 1. Optimistic update: mark request as accepted
     setRescheduleRequests((prev) =>
       prev.map((r) =>
         r.id === requestId
@@ -945,7 +1040,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       )
     );
 
-    // 2. Update actual session date and time
+    // 2. Optimistic update: set meeting date and time to the new proposed timing!
     setSessions((prev) =>
       prev.map((s) => {
         if (s.id === req.sessionId) {
@@ -953,13 +1048,72 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             ...s,
             date: req.proposedDate,
             time: req.proposedTime,
+            status: "upcoming",
           };
         }
         return s;
       })
     );
 
-    // 3. Notify requester
+    // 3. Persist to PostgreSQL backend database
+    sessionApi
+      .respondToRescheduleRequest(requestId, "accept")
+      .then(async () => {
+        // Also call timing update as redundant guarantee
+        const cleanTime = (req.proposedTime || "17:00 - 18:00").replace(/[\u2013\u2014–—]/g, "-");
+        const times = cleanTime.split("-").map((t) => t.trim());
+        await sessionApi
+          .updateSessionTiming(req.sessionId, {
+            scheduledDate: req.proposedDate,
+            startTime: times[0] || "17:00",
+            endTime: times[1] || "18:00",
+            status: "upcoming",
+          })
+          .catch(() => {});
+        refreshSessions();
+      })
+      .catch(async (err) => {
+        console.warn("Backend accept reschedule sync note:", err);
+        const cleanTime = (req.proposedTime || "17:00 - 18:00").replace(/[\u2013\u2014–—]/g, "-");
+        const times = cleanTime.split("-").map((t) => t.trim());
+        await sessionApi
+          .updateSessionTiming(req.sessionId, {
+            scheduledDate: req.proposedDate,
+            startTime: times[0] || "17:00",
+            endTime: times[1] || "18:00",
+            status: "upcoming",
+          })
+          .catch(() => {});
+        refreshSessions();
+      });
+
+    // 4. Instant cross-tab broadcast
+    try {
+      const bc = new BroadcastChannel("skillswap_session_channel");
+      bc.postMessage({
+        type: "RESCHEDULE_ACCEPTED",
+        sessionId: req.sessionId,
+        requestId,
+        proposedDate: req.proposedDate,
+        proposedTime: req.proposedTime,
+      });
+      bc.close();
+    } catch {}
+    try {
+      localStorage.setItem(
+        "skillswap_session_event",
+        JSON.stringify({
+          type: "RESCHEDULE_ACCEPTED",
+          sessionId: req.sessionId,
+          requestId,
+          proposedDate: req.proposedDate,
+          proposedTime: req.proposedTime,
+          timestamp: Date.now(),
+        })
+      );
+    } catch {}
+
+    // 5. Notify requester in UI
     addNotification({
       userId: req.requestedById,
       type: "session",
@@ -990,7 +1144,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, error: "Only the recipient can decline this reschedule proposal." };
     }
 
-    // Update request status to rejected
+    // 1. Optimistic update
     setRescheduleRequests((prev) =>
       prev.map((r) =>
         r.id === requestId
@@ -998,6 +1152,25 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           : r
       )
     );
+
+    // 2. Persist to PostgreSQL backend
+    sessionApi
+      .respondToRescheduleRequest(requestId, "reject")
+      .then(() => {
+        try {
+          const bc = new BroadcastChannel("skillswap_session_channel");
+          bc.postMessage({ type: "RESCHEDULE_DECLINED", sessionId: req.sessionId, requestId });
+          bc.close();
+        } catch {}
+        try {
+          localStorage.setItem(
+            "skillswap_session_event",
+            JSON.stringify({ type: "RESCHEDULE_DECLINED", sessionId: req.sessionId, requestId, timestamp: Date.now() })
+          );
+        } catch {}
+        refreshSessions();
+      })
+      .catch((err) => console.warn("Backend reject reschedule note:", err));
 
     // Notify requester
     addNotification({
@@ -1030,7 +1203,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, error: "Only the requester can cancel this reschedule proposal." };
     }
 
-    // Update request status to cancelled
+    // 1. Optimistic update
     setRescheduleRequests((prev) =>
       prev.map((r) =>
         r.id === requestId
@@ -1038,6 +1211,25 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           : r
       )
     );
+
+    // 2. Persist to PostgreSQL backend
+    sessionApi
+      .respondToRescheduleRequest(requestId, "cancel")
+      .then(() => {
+        try {
+          const bc = new BroadcastChannel("skillswap_session_channel");
+          bc.postMessage({ type: "RESCHEDULE_CANCELLED", sessionId: req.sessionId, requestId });
+          bc.close();
+        } catch {}
+        try {
+          localStorage.setItem(
+            "skillswap_session_event",
+            JSON.stringify({ type: "RESCHEDULE_CANCELLED", sessionId: req.sessionId, requestId, timestamp: Date.now() })
+          );
+        } catch {}
+        refreshSessions();
+      })
+      .catch((err) => console.warn("Backend cancel reschedule note:", err));
 
     // Notify recipient
     addNotification({

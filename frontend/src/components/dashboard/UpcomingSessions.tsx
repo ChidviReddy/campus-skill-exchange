@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, ArrowRight, Video, Sparkles, User as UserIcon } from "lucide-react";
+import { CalendarDays, Clock, ArrowRight, Video, Sparkles, User as UserIcon, CalendarClock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
 import { isSessionExpired, getSessionStartDateTime, isSessionBeforeStart, formatStartTimeOnly } from "@/utils/sessionTime";
@@ -84,6 +84,11 @@ const UpcomingSessions = () => {
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
                     {nearestSession.learnerId === currentUser.id ? "Learning" : "Teaching"}
                   </span>
+                  {getPendingRescheduleForSession(nearestSession.id) && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                      <CalendarClock size={11} /> Reschedule Proposed
+                    </span>
+                  )}
                 </div>
 
                 <span className="text-xs font-semibold text-violet-700">

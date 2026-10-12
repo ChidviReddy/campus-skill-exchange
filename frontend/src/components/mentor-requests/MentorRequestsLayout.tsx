@@ -3,7 +3,7 @@ import { Inbox, CheckCircle2, Calendar, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSessions } from "@/hooks/useSessions";
 import type { Session } from "@/data/sessions";
-import { isInitialRequestExpired, isSessionExpired } from "@/utils/sessionTime";
+import { isInitialRequestExpired, isSessionExpired, isRescheduleRequestExpired } from "@/utils/sessionTime";
 
 import Sidebar from "../dashboard/Sidebar";
 import Topbar from "../dashboard/Topbar";
@@ -19,31 +19,53 @@ const MentorRequestsLayout = () => {
     acceptRequest,
     rejectRequest,
     currentUser,
+    rescheduleRequests,
     getPendingRescheduleForSession,
   } = useSessions();
   const [activeTab, setActiveTab] = useState<FilterTab>("pending");
   const [acceptingSession, setAcceptingSession] = useState<Session | null>(null);
   const [rejectingSession, setRejectingSession] = useState<Session | null>(null);
 
-  // Incoming active pending requests sent to the current logged-in user
+  // Helper: check if session has active incoming pending reschedule for current user
+  const hasIncomingPendingReschedule = (s: Session) => {
+    const resched = getPendingRescheduleForSession(s.id);
+    return Boolean(
+      resched &&
+      resched.status === "pending" &&
+      String(resched.requestedForId).toLowerCase() === String(currentUser.id).toLowerCase() &&
+      !isRescheduleRequestExpired(resched)
+    );
+  };
+
+  // Incoming active pending requests sent to the current logged-in user (initial + reschedule)
   const pendingRequests = useMemo(
     () =>
-      sessions.filter(
-        (s) =>
-          s.mentorId === currentUser.id &&
+      sessions.filter((s) => {
+        const isMentorInitial =
+          String(s.mentorId).toLowerCase() === String(currentUser.id).toLowerCase() &&
           s.status === "pending" &&
-          !isInitialRequestExpired(s)
-      ),
-    [sessions, currentUser.id]
+          !isInitialRequestExpired(s);
+        return isMentorInitial || hasIncomingPendingReschedule(s);
+      }),
+    [sessions, currentUser.id, rescheduleRequests, getPendingRescheduleForSession]
   );
 
   // All pending requests including expired for display under pending tab
   const allPendingRequests = useMemo(
     () =>
-      sessions.filter(
-        (s) => s.mentorId === currentUser.id && s.status === "pending"
-      ),
-    [sessions, currentUser.id]
+      sessions.filter((s) => {
+        const isMentorPending =
+          String(s.mentorId).toLowerCase() === String(currentUser.id).toLowerCase() &&
+          s.status === "pending";
+        const hasResched = rescheduleRequests.some(
+          (r) =>
+            r.sessionId === s.id &&
+            String(r.requestedForId).toLowerCase() === String(currentUser.id).toLowerCase() &&
+            r.status === "pending"
+        );
+        return isMentorPending || hasResched;
+      }),
+    [sessions, currentUser.id, rescheduleRequests]
   );
 
   // Upcoming sessions where current user is mentor OR learner
@@ -51,7 +73,8 @@ const MentorRequestsLayout = () => {
     () =>
       sessions.filter(
         (s) =>
-          (s.mentorId === currentUser.id || s.learnerId === currentUser.id) &&
+          (String(s.mentorId).toLowerCase() === String(currentUser.id).toLowerCase() ||
+           String(s.learnerId).toLowerCase() === String(currentUser.id).toLowerCase()) &&
           s.status === "upcoming" &&
           (!isSessionExpired(s) || Boolean(getPendingRescheduleForSession(s.id)))
       ),
